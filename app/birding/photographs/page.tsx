@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { BirdingLanguageToggle } from "@/components/BirdingLanguageToggle";
 import { RatedPhotoArchive } from "@/components/PhotoArchive";
-import { getRatedSpeciesRepresentatives } from "@/lib/birding";
+import { getBirdingSpecies, getRatedSpeciesRepresentatives } from "@/lib/birding";
 
 export const metadata = { title: "Photographs" };
+export const dynamic = "force-dynamic";
 
-export default function PhotographsPage() {
-  const photos = getRatedSpeciesRepresentatives();
+export default async function PhotographsPage() {
+  const birds = await getBirdingSpecies();
+  const photos = getRatedSpeciesRepresentatives(birds);
 
   return (
     <section className="birding-page photographs-page">
