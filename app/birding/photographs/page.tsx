@@ -5,6 +5,7 @@ import { getBirdingSpecies } from "@/lib/birding";
 
 export const metadata = { title: "Photographs" };
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 export default async function PhotographsPage() {
   const birds = await getBirdingSpecies();
