@@ -1,13 +1,38 @@
 import { notFound } from "next/navigation";
-import { getProject, projects } from "@/lib/projects";
+import { ProjectBody } from "@/components/SanityContent";
+import { getProject as getLocalProject } from "@/lib/projects";
+import { getSanityProject } from "@/lib/sanity";
 
-export function generateStaticParams() {
-  return projects.map((project) => ({ slug: project.slug }));
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const sanityProject = await getSanityProject(slug);
+  const localProject = sanityProject ? null : getLocalProject(slug);
+  const project = sanityProject || localProject;
+
+  if (!project) return { title: "Work" };
+  return { title: project.title, description: project.summary };
 }
 
 export default async function ProjectPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const project = getProject(slug);
+  const sanityProject = await getSanityProject(slug);
+
+  if (sanityProject) {
+    return (
+      <article className="original-project-page">
+        <div className="project-feature-line">
+          {sanityProject.venue ? <>featured @ {sanityProject.venue}</> : <>{sanityProject.type} · {sanityProject.year}</>}
+        </div>
+        <header className="original-project-title">
+          <h1>{sanityProject.title}</h1>
+          {(sanityProject.subtitle || sanityProject.summary) ? <h2>{sanityProject.subtitle || sanityProject.summary}</h2> : null}
+        </header>
+        <ProjectBody value={sanityProject.body} />
+      </article>
+    );
+  }
+
+  const project = getLocalProject(slug);
   if (!project) notFound();
 
   const isPNF = project.slug === "palpable-night-forest";
