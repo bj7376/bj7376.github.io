@@ -1,5 +1,13 @@
 import {execFileSync} from 'node:child_process'
-import {existsSync, readFileSync, statSync} from 'node:fs'
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
+import {tmpdir} from 'node:os'
 import {basename, join} from 'node:path'
 import {getCliClient} from 'sanity/cli'
 
@@ -25,16 +33,100 @@ if (!existsSync(source)) {
 }
 
 const isZip = statSync(source).isFile() && source.toLowerCase().endsWith('.zip')
-const archiveEntries = isZip
-  ? execFileSync('tar', ['-tf', source], {encoding: 'utf8', maxBuffer: 50 * 1024 * 1024})
-      .split(/\r?\n/)
-      .filter(Boolean)
-  : []
+
+// Windows tar can mangle non-ASCII parent paths from Google Takeout (for example
+// Korean folder names). On Windows, use .NET's ZipArchive instead and match only
+// the ASCII/known suffix below DRAFT. Other platforms keep the simpler tar path.
+const windowsZipTemp =
+  isZip && process.platform === 'win32'
+    ? mkdtempSync(join(tmpdir(), 'byoungjae-takeout-'))
+    : null
+
+let windowsZipExtractor: string | null = null
+
+if (windowsZipTemp) {
+  windowsZipExtractor = join(windowsZipTemp, 'extract-entry.ps1')
+  writeFileSync(
+    windowsZipExtractor,
+    `param(
+  [Parameter(Mandatory=$true)][string]$ZipPath,
+  [Parameter(Mandatory=$true)][string]$RelativePath,
+  [Parameter(Mandatory=$true)][string]$OutPath
+)
+
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$zip = [System.IO.Compression.ZipFile]::OpenRead($ZipPath)
+try {
+  $normalized = $RelativePath.Replace('\\', '/')
+  $suffix = '/DRAFT/' + $normalized
+  $short = 'DRAFT/' + $normalized
+
+  $entry = $zip.Entries | Where-Object {
+    $name = $_.FullName.Replace('\\', '/')
+    $name.EndsWith($suffix, [System.StringComparison]::OrdinalIgnoreCase) -or
+      $name.Equals($short, [System.StringComparison]::OrdinalIgnoreCase)
+  } | Select-Object -First 1
+
+  if ($null -eq $entry) {
+    throw "Could not find $RelativePath inside the Takeout ZIP."
+  }
+
+  $parent = [System.IO.Path]::GetDirectoryName($OutPath)
+  if ($parent) {
+    [System.IO.Directory]::CreateDirectory($parent) | Out-Null
+  }
+
+  [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $OutPath, $true)
+}
+finally {
+  $zip.Dispose()
+}
+`,
+    'utf8',
+  )
+}
+
+const archiveEntries =
+  isZip && !windowsZipTemp
+    ? execFileSync('tar', ['-tf', source], {encoding: 'utf8', maxBuffer: 50 * 1024 * 1024})
+        .split(/\r?\n/)
+        .filter(Boolean)
+    : []
 
 function readAsset(relativePath: string): Buffer {
   const normalized = relativePath.replace(/\\/g, '/')
 
   if (isZip) {
+    if (windowsZipTemp && windowsZipExtractor) {
+      const extractedPath = join(
+        windowsZipTemp,
+        normalized.replace(/[\\/:*?"<>|]/g, '__'),
+      )
+
+      if (!existsSync(extractedPath)) {
+        execFileSync(
+          'powershell.exe',
+          [
+            '-NoProfile',
+            '-NonInteractive',
+            '-ExecutionPolicy',
+            'Bypass',
+            '-File',
+            windowsZipExtractor,
+            '-ZipPath',
+            source,
+            '-RelativePath',
+            normalized,
+            '-OutPath',
+            extractedPath,
+          ],
+          {stdio: 'inherit'},
+        )
+      }
+
+      return readFileSync(extractedPath)
+    }
+
     const entry = archiveEntries.find(
       (item) => item.endsWith(`/DRAFT/${normalized}`) || item === `DRAFT/${normalized}`,
     )
@@ -307,16 +399,20 @@ async function importProject(slug: string, config: ProjectImport) {
 }
 
 async function main() {
-  console.log(`Import source: ${source}`)
-  await importBio()
+  try {
+    console.log(`Import source: ${source}`)
+    await importBio()
 
-  for (const [slug, config] of Object.entries(projects)) {
-    await importProject(slug, config)
+    for (const [slug, config] of Object.entries(projects)) {
+      await importProject(slug, config)
+    }
+
+    console.log(
+      '\nDone. Bio portrait, Work covers, project images, and YouTube embeds are now attached to the existing drafts.',
+    )
+  } finally {
+    if (windowsZipTemp) rmSync(windowsZipTemp, {recursive: true, force: true})
   }
-
-  console.log(
-    '\nDone. Bio portrait, Work covers, project images, and YouTube embeds are now attached to the existing drafts.',
-  )
 }
 
 main().catch((error) => {
