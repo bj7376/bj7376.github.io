@@ -1,4 +1,4 @@
-export type BirdPhoto = {
+export type BirdMedia = {
   id: string;
   label: string;
   year: number;
@@ -11,6 +11,8 @@ export type BirdPhoto = {
   checklistId?: string;
   mediaType?: string;
 };
+
+export type BirdPhoto = BirdMedia;
 
 export type RelatedChecklist = {
   id: string;
@@ -29,6 +31,8 @@ export type Species = {
   familyCommon: string;
   taxonomicOrder: number;
   photos: BirdPhoto[];
+  videos: BirdMedia[];
+  audio: BirdMedia[];
   relatedChecklists: RelatedChecklist[];
 };
 
@@ -105,14 +109,15 @@ function dateOnly(value: string | null | undefined) {
   return value ? value.slice(0, 10) : "";
 }
 
-function newestPhotoSort(a: BirdPhoto, b: BirdPhoto) {
+function newestMediaSort(a: BirdMedia, b: BirdMedia) {
   return b.takenAt.localeCompare(a.takenAt) || Number(b.id) - Number(a.id);
 }
 
-function isPhotograph(mediaType: string | null | undefined) {
-  if (!mediaType) return true;
-  const normalized = mediaType.trim().toLowerCase();
-  return normalized === "photo" || normalized === "image";
+function mediaKind(mediaType: string | null | undefined): "photo" | "video" | "audio" {
+  const normalized = (mediaType || "").trim().toLowerCase();
+  if (["video", "영상"].includes(normalized)) return "video";
+  if (["audio", "sound", "음원"].includes(normalized)) return "audio";
+  return "photo";
 }
 
 export async function getBirdingSpecies(): Promise<Species[]> {
@@ -143,36 +148,42 @@ export async function getBirdingSpecies(): Promise<Species[]> {
     const familyCommon = taxon.family_common_name?.trim() || family;
 
     const birdMedia = mediaBySpecies.get(taxon.species_code) ?? [];
-    const photos = birdMedia
-      .filter((item) => isPhotograph(item.media_type))
-      .map<BirdPhoto>((item) => {
-        const location = item.location_name
-          || (item.location_id ? locationsById.get(item.location_id)?.name : undefined)
-          || "";
-        const takenAt = dateOnly(item.taken_at);
-        return {
-          id: String(item.ml_asset_id),
-          label: englishName,
-          year: takenAt ? Number(takenAt.slice(0, 4)) : 0,
-          takenAt,
-          location,
-          rating: numeric(item.rating),
-          ratingCount: item.rating_count ?? undefined,
-          src: item.thumbnail_url || `https://cdn.download.ams.birds.cornell.edu/api/v2/asset/${item.ml_asset_id}/1200`,
-          sourceUrl: item.source_url || `https://macaulaylibrary.org/asset/${item.ml_asset_id}`,
-          checklistId: item.checklist_id ?? undefined,
-          mediaType: item.media_type ?? undefined,
-        };
-      })
-      .sort(newestPhotoSort);
+    const allMedia = birdMedia.map<BirdMedia>((item) => {
+      const location = item.location_name
+        || (item.location_id ? locationsById.get(item.location_id)?.name : undefined)
+        || "";
+      const takenAt = dateOnly(item.taken_at);
+      return {
+        id: String(item.ml_asset_id),
+        label: englishName,
+        year: takenAt ? Number(takenAt.slice(0, 4)) : 0,
+        takenAt,
+        location,
+        rating: numeric(item.rating),
+        ratingCount: item.rating_count ?? undefined,
+        src: item.thumbnail_url || (mediaKind(item.media_type) === "photo"
+          ? `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${item.ml_asset_id}/1200`
+          : undefined),
+        sourceUrl: item.source_url || `https://macaulaylibrary.org/asset/${item.ml_asset_id}`,
+        checklistId: item.checklist_id ?? undefined,
+        mediaType: mediaKind(item.media_type),
+      };
+    });
+
+    const photos = allMedia.filter((item) => item.mediaType === "photo").sort(newestMediaSort);
+    const videos = allMedia.filter((item) => item.mediaType === "video").sort(newestMediaSort);
+    const audio = allMedia.filter((item) => item.mediaType === "audio").sort(newestMediaSort);
 
     const checklistIds = [...new Set(birdMedia.map((item) => item.checklist_id).filter((id): id is string => Boolean(id)))];
     const relatedChecklists = checklistIds.map<RelatedChecklist>((id) => {
       const checklist = checklistsById.get(id);
-      const place = checklist?.location_id ? locationsById.get(checklist.location_id)?.name ?? "" : "";
+      const mediaMatch = birdMedia.find((item) => item.checklist_id === id);
+      const place = (checklist?.location_id ? locationsById.get(checklist.location_id)?.name : undefined)
+        || mediaMatch?.location_name
+        || "";
       return {
         id,
-        date: checklist?.observed_date || dateOnly(checklist?.observed_at) || "",
+        date: checklist?.observed_date || dateOnly(checklist?.observed_at) || dateOnly(mediaMatch?.taken_at) || "",
         place,
         url: `https://ebird.org/checklist/${id}`,
       };
@@ -188,6 +199,8 @@ export async function getBirdingSpecies(): Promise<Species[]> {
       familyCommon,
       taxonomicOrder: taxonOrder,
       photos,
+      videos,
+      audio,
       relatedChecklists,
     };
   });
@@ -222,7 +235,7 @@ export function getLatestSpeciesRepresentatives(birds: Species[]): RankedPhoto[]
 export function getRecentPhotos(birds: Species[]): RankedPhoto[] {
   const newestFirst = birds
     .flatMap((bird) => bird.photos.map((photo) => ({ bird, photo })))
-    .sort((a, b) => newestPhotoSort(a.photo, b.photo));
+    .sort((a, b) => newestMediaSort(a.photo, b.photo));
 
   const seen = new Set<string>();
   return newestFirst.filter(({ bird }) => {
