@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getHeroPhoto, groupedSpecies, type RankedPhoto, type Species } from "@/lib/birding";
 
 function PhotoItem({ item, recent = false }: { item: RankedPhoto; recent?: boolean }) {
@@ -16,19 +15,7 @@ function PhotoItem({ item, recent = false }: { item: RankedPhoto; recent?: boole
   );
 }
 
-export function RatedPhotoArchive({ photos, limit, showMore = false }: { photos: RankedPhoto[]; limit?: number; showMore?: boolean }) {
-  const visible = typeof limit === "number" ? photos.slice(0, limit) : photos;
-  return (
-    <>
-      <div className="photo-index-grid photo-index-grid-rated">
-        {visible.map((item) => <PhotoItem item={item} key={`${item.bird.code}-${item.photo.id}`} />)}
-      </div>
-      {showMore && photos.length > visible.length && <Link className="more-link" href="/birding/photographs">More</Link>}
-    </>
-  );
-}
-
-export function RecentPhotoStrip({ photos, limit = 5 }: { photos: RankedPhoto[]; limit?: number }) {
+export function RecentPhotoStrip({ photos, limit = 10 }: { photos: RankedPhoto[]; limit?: number }) {
   return (
     <div className="photo-index-grid photo-index-grid-recent">
       {photos.slice(0, limit).map((item) => <PhotoItem recent item={item} key={`${item.bird.code}-${item.photo.id}`} />)}
