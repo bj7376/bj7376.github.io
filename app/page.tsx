@@ -6,7 +6,7 @@ import {
   getSanityPublications,
 } from "@/lib/sanity";
 
-export const metadata = { title: { absolute: "Byoungjae Kim - IxDesigner × Birder" } };
+export const metadata = { title: { absolute: "Byoungjae Kim — Birder Who Designs" } };
 
 const fallbackPublications = [
   { title: "Palpable Night Forest: A Sensorial Interface for Remote Engagement with Nocturnal Nature", authors: "Byoungjae Kim and Chang Hee Lee.", venue: "UIST'25 Poster", year: 2025, url: "https://dl.acm.org/doi/10.1145/3746058.3758445" },
