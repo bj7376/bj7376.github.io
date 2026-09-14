@@ -21,6 +21,7 @@
 .observation-list strong{font-weight:400}
 .observation-list span,.observation-list time{color:var(--muted)}
 .observation-list > div > span:last-child{text-align:right}
+.related-checklist-list > div{grid-template-columns:120px 1fr 24px}
 .empty-state{padding:18px 0;color:var(--muted);font-size:var(--t-meta)}
 .article-page{max-width:none;padding:64px 0 0}
 .eyebrow{margin:0 0 10px;font-size:var(--t-meta);color:var(--muted);text-transform:none;letter-spacing:0}
