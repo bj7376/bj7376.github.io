@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { BirdingLanguageToggle } from "@/components/BirdingLanguageToggle";
 import { BirdName } from "@/components/BirdName";
-import { getBirdingSpecies, getHeroPhoto, getSpecies } from "@/lib/birding";
+import { getBirdingSpecies, getHeroPhoto, getSpecies, type BirdMedia } from "@/lib/birding";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +13,21 @@ function displayDate(date: string) {
     year: "numeric",
     timeZone: "UTC",
   }).format(new Date(`${date}T00:00:00Z`));
+}
+
+function MediaRows({ items }: { items: BirdMedia[] }) {
+  return (
+    <div className="species-media-list">
+      {items.map((item) => (
+        <a href={item.sourceUrl} target="_blank" rel="noreferrer" key={item.id}>
+          <time>{displayDate(item.takenAt)}</time>
+          <strong>{item.location || "Macaulay Library"}</strong>
+          <span>ML{item.id}</span>
+          <span>↗</span>
+        </a>
+      ))}
+    </div>
+  );
 }
 
 export default async function SpeciesPage({ params }: { params: Promise<{ code: string }> }) {
@@ -65,6 +80,20 @@ export default async function SpeciesPage({ params }: { params: Promise<{ code: 
           ))}
         </div>
       </section>
+
+      {bird.videos.length > 0 && (
+        <section className="species-section species-media-section">
+          <div className="minimal-section-heading"><h2>Videos</h2></div>
+          <MediaRows items={bird.videos} />
+        </section>
+      )}
+
+      {bird.audio.length > 0 && (
+        <section className="species-section species-media-section">
+          <div className="minimal-section-heading"><h2>Audio</h2></div>
+          <MediaRows items={bird.audio} />
+        </section>
+      )}
 
       <section className="species-section observation-section">
         <div className="minimal-section-heading"><h2>Related checklists</h2></div>
