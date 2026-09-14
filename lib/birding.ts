@@ -43,7 +43,6 @@ type DbTaxon = {
   order_name: string | null;
   family_common_name: string | null;
   family_scientific_name: string | null;
-  submitted_name: string | null;
 };
 
 type DbMedia = {
@@ -73,64 +72,9 @@ type DbLocation = {
   name: string;
 };
 
-type TaxonomyRow = Record<string, string>;
-
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://ifqrvugxfmeclaqadqbd.supabase.co";
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmcXJ2dWd4Zm1lY2xhcWFkcWJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzOTI3MzcsImV4cCI6MjEwNDk2ODczN30.M3iMKEBs8JFzboUWBCt3CtYCbqIma8zmQ7KL2LqWE9Y";
-const TAXONOMY_URL = "https://www.birds.cornell.edu/clementschecklist/wp-content/uploads/2026/04/eBird_taxonomy_v2025-4.csv";
 const PAGE_SIZE = 1000;
-
-function normalizeHeader(value: string) {
-  return value.replace(/^\uFEFF/, "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
-}
-
-function parseCsv(text: string): TaxonomyRow[] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = "";
-  let quoted = false;
-
-  for (let i = 0; i < text.length; i += 1) {
-    const char = text[i];
-    if (quoted) {
-      if (char === '"' && text[i + 1] === '"') {
-        field += '"';
-        i += 1;
-      } else if (char === '"') {
-        quoted = false;
-      } else {
-        field += char;
-      }
-    } else if (char === '"') {
-      quoted = true;
-    } else if (char === ",") {
-      row.push(field);
-      field = "";
-    } else if (char === "\n") {
-      row.push(field.replace(/\r$/, ""));
-      rows.push(row);
-      row = [];
-      field = "";
-    } else {
-      field += char;
-    }
-  }
-
-  if (field.length || row.length) {
-    row.push(field.replace(/\r$/, ""));
-    rows.push(row);
-  }
-
-  if (rows.length < 2) return [];
-  const headers = rows[0].map(normalizeHeader);
-  return rows.slice(1).map((values) => {
-    const result: TaxonomyRow = {};
-    headers.forEach((header, index) => {
-      result[header] = values[index] ?? "";
-    });
-    return result;
-  });
-}
 
 async function fetchTable<T>(table: string, select = "*"): Promise<T[]> {
   const all: T[] = [];
@@ -151,21 +95,6 @@ async function fetchTable<T>(table: string, select = "*"): Promise<T[]> {
   return all;
 }
 
-async function loadTaxonomy(): Promise<Map<string, TaxonomyRow>> {
-  try {
-    const response = await fetch(TAXONOMY_URL, { next: { revalidate: 86400 } });
-    if (!response.ok) return new Map();
-    const rows = parseCsv(await response.text());
-    return new Map(
-      rows
-        .map((row) => [row.sci_name?.trim().toLowerCase(), row] as const)
-        .filter(([name]) => Boolean(name)),
-    );
-  } catch {
-    return new Map();
-  }
-}
-
 function numeric(value: number | string | null | undefined) {
   if (value === null || value === undefined || value === "") return undefined;
   const parsed = Number(value);
@@ -176,7 +105,7 @@ function dateOnly(value: string | null | undefined) {
   return value ? value.slice(0, 10) : "";
 }
 
-function photoSort(a: BirdPhoto, b: BirdPhoto) {
+function qualitySort(a: BirdPhoto, b: BirdPhoto) {
   const rating = (b.rating ?? -1) - (a.rating ?? -1);
   if (rating) return rating;
   const ratingCount = (b.ratingCount ?? -1) - (a.ratingCount ?? -1);
@@ -184,13 +113,24 @@ function photoSort(a: BirdPhoto, b: BirdPhoto) {
   return b.takenAt.localeCompare(a.takenAt) || Number(b.id) - Number(a.id);
 }
 
+function representativeSort(a: RankedPhoto, b: RankedPhoto) {
+  const rating = (b.photo.rating ?? -1) - (a.photo.rating ?? -1);
+  if (rating) return rating;
+  const ratingCount = (b.photo.ratingCount ?? -1) - (a.photo.ratingCount ?? -1);
+  if (ratingCount) return ratingCount;
+
+  // If rating data is unavailable, keep All photographs stable and distinct
+  // from Recent photographs by falling back to taxonomy rather than recency.
+  return a.bird.taxonomicOrder - b.bird.taxonomicOrder
+    || a.bird.commonName.localeCompare(b.bird.commonName);
+}
+
 export async function getBirdingSpecies(): Promise<Species[]> {
-  const [taxa, media, checklists, locations, taxonomy] = await Promise.all([
+  const [taxa, media, checklists, locations] = await Promise.all([
     fetchTable<DbTaxon>("taxa"),
     fetchTable<DbMedia>("media"),
     fetchTable<DbChecklist>("checklists"),
     fetchTable<DbLocation>("locations"),
-    loadTaxonomy(),
   ]);
 
   const locationsById = new Map(locations.map((location) => [location.location_id, location]));
@@ -205,15 +145,12 @@ export async function getBirdingSpecies(): Promise<Species[]> {
   }
 
   const birds = taxa.map<Species>((taxon) => {
-    const taxonomyRow = taxonomy.get(taxon.scientific_name.trim().toLowerCase());
-    const englishName = taxonomyRow?.primary_com_name?.trim() || taxon.common_name;
-    const koreanName = taxon.korean_name?.trim()
-      || (taxon.common_name !== englishName ? taxon.common_name : "")
-      || englishName;
-    const taxonOrder = numeric(taxonomyRow?.taxon_order) ?? taxon.taxonomic_order ?? Number.MAX_SAFE_INTEGER;
-    const order = taxonomyRow?.order?.trim() || taxon.order_name?.trim() || "Unclassified";
-    const family = taxonomyRow?.family_sci_name?.trim() || taxon.family_scientific_name?.trim() || "Unclassified";
-    const familyCommon = taxonomyRow?.family_com_name?.trim() || taxon.family_common_name?.trim() || family;
+    const englishName = taxon.common_name.trim();
+    const koreanName = taxon.korean_name?.trim() || englishName;
+    const taxonOrder = taxon.taxonomic_order ?? Number.MAX_SAFE_INTEGER;
+    const order = taxon.order_name?.trim() || "Unclassified";
+    const family = taxon.family_scientific_name?.trim() || "Unclassified";
+    const familyCommon = taxon.family_common_name?.trim() || family;
 
     const birdMedia = mediaBySpecies.get(taxon.species_code) ?? [];
     const photos = birdMedia.map<BirdPhoto>((item) => {
@@ -234,7 +171,7 @@ export async function getBirdingSpecies(): Promise<Species[]> {
         checklistId: item.checklist_id ?? undefined,
         mediaType: item.media_type ?? undefined,
       };
-    }).sort(photoSort);
+    }).sort(qualitySort);
 
     const checklistIds = [...new Set(birdMedia.map((item) => item.checklist_id).filter((id): id is string => Boolean(id)))];
     const relatedChecklists = checklistIds.map<RelatedChecklist>((id) => {
@@ -279,14 +216,14 @@ export function groupedSpecies(birds: Species[]) {
 }
 
 export function getHeroPhoto(bird: Species) {
-  return [...bird.photos].sort(photoSort)[0];
+  return [...bird.photos].sort(qualitySort)[0];
 }
 
 export function getRatedSpeciesRepresentatives(birds: Species[]): RankedPhoto[] {
   return birds
     .map((bird) => ({ bird, photo: getHeroPhoto(bird) }))
     .filter((item): item is RankedPhoto => Boolean(item.photo))
-    .sort((a, b) => photoSort(a.photo, b.photo));
+    .sort(representativeSort);
 }
 
 export function getRecentPhotos(birds: Species[]): RankedPhoto[] {
