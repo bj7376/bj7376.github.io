@@ -8,7 +8,8 @@
 }
 @media(max-width:820px){
   :root{--edge:22px}
-  .bio-section,.birding-section,.species-section,.birding-minimal-header,.species-language-row,.species-header.minimal-species-header,.species-hero-image,.taxon-order,.photo-taxon-order,.original-project-page,.trips-header,.site-footer{display:block}
+  .bio-section,.birding-section,.species-section,.birding-minimal-header,.all-photographs-link-row,.species-language-row,.species-header.minimal-species-header,.species-hero-image,.taxon-order,.photo-taxon-order,.original-project-page,.trips-header,.site-footer{display:block}
+  .all-photographs-link-row a{display:inline-block}
   .bio-section > h1,.bio-section > h2,.birding-section > .minimal-section-heading,.species-section > .minimal-section-heading{margin:0 0 14px}
   .bio-intro{grid-template-columns:1fr;gap:24px;padding:36px 0 44px}
   .bio-portrait{order:-1}
