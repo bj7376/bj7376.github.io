@@ -17,10 +17,10 @@ export default async function SpeciesPage({ params }: { params: Promise<{ code: 
     return score || (b.ratingCount ?? 0) - (a.ratingCount ?? 0);
   });
 
-  const observations = [
-    { date: "18 Apr 2026", place: "Seocheon, South Korea", count: 3 },
-    { date: "04 Oct 2025", place: bird.photos[0]?.location ?? "South Korea", count: 1 },
-    { date: "21 Sep 2024", place: "West coast, South Korea", count: 6 },
+  const relatedChecklists = [
+    { date: "18 Apr 2026", place: "Seocheon, South Korea" },
+    { date: "04 Oct 2025", place: bird.photos[0]?.location ?? "South Korea" },
+    { date: "21 Sep 2024", place: "West coast, South Korea" },
   ];
 
   return (
@@ -32,7 +32,6 @@ export default async function SpeciesPage({ params }: { params: Promise<{ code: 
           <h1><BirdName bird={bird} /></h1>
           <p className="scientific-name">{bird.scientificName}</p>
         </div>
-        <p className="species-meta-inline">{bird.photoCount} photographs · {bird.observations} observations · {bird.firstSeen}—{bird.latestSeen}</p>
       </header>
 
       <figure className="species-hero-image">
@@ -57,13 +56,12 @@ export default async function SpeciesPage({ params }: { params: Promise<{ code: 
       </section>
 
       <section className="species-section observation-section">
-        <div className="minimal-section-heading"><h2>Observations</h2></div>
-        <div className="observation-list">
-          {observations.map((observation, index) => (
-            <div key={`${observation.date}-${index}`}>
-              <time>{observation.date}</time>
-              <strong>{observation.place}</strong>
-              <span>{observation.count}</span>
+        <div className="minimal-section-heading"><h2>Related checklists</h2></div>
+        <div className="observation-list related-checklist-list">
+          {relatedChecklists.map((checklist, index) => (
+            <div key={`${checklist.date}-${index}`}>
+              <time>{checklist.date}</time>
+              <strong>{checklist.place}</strong>
               <span>↗</span>
             </div>
           ))}
