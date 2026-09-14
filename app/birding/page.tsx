@@ -34,7 +34,6 @@ export default function BirdingPage() {
                         <a href={`/birding/species/${bird.code}`} key={bird.code}>
                           <BirdName bird={bird} />
                           <em>{bird.scientificName}</em>
-                          <small>{bird.photoCount} / {bird.observations}</small>
                         </a>
                       ))}
                     </div>
