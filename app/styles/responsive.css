@@ -2,12 +2,13 @@
   :root{--rail:124px;--gap:28px}
   .project-grid.original-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .photo-index-grid-rated,.photo-index-grid-recent{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .photo-index-grid-taxonomic{grid-template-columns:repeat(3,minmax(0,1fr))}
   .species-photo-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .family-row{grid-template-columns:140px 1fr;gap:16px}
+  .family-row,.photo-family-row{grid-template-columns:140px 1fr;gap:16px}
 }
 @media(max-width:820px){
   :root{--edge:22px}
-  .bio-section,.birding-section,.species-section,.birding-minimal-header,.species-language-row,.species-header.minimal-species-header,.species-hero-image,.taxon-order,.original-project-page,.trips-header,.site-footer{display:block}
+  .bio-section,.birding-section,.species-section,.birding-minimal-header,.species-language-row,.species-header.minimal-species-header,.species-hero-image,.taxon-order,.photo-taxon-order,.original-project-page,.trips-header,.site-footer{display:block}
   .bio-section > h1,.bio-section > h2,.birding-section > .minimal-section-heading,.species-section > .minimal-section-heading{margin:0 0 14px}
   .bio-intro{grid-template-columns:1fr;gap:24px;padding:36px 0 44px}
   .bio-portrait{order:-1}
@@ -16,7 +17,7 @@
   .site-header{height:52px}
   .site-header nav{gap:16px}
   .site-footer{display:flex;flex-direction:column;gap:4px;margin-top:72px}
-  .taxon-order h3{margin:0 0 10px}
+  .taxon-order h3,.photo-order-index h2{margin:0 0 10px}
   .work-page,.birding-page,.species-page,.original-project-page,.article-page,.trips-page,.index-page{padding-top:36px}
   .original-project-title{margin-bottom:28px}
   .project-feature-line{margin:0 0 14px}
@@ -29,8 +30,8 @@
 @media(max-width:600px){
   :root{--edge:18px}
   .project-grid.original-grid{grid-template-columns:1fr;gap:36px}
-  .photo-index-grid-rated,.photo-index-grid-recent,.species-photo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .family-row{grid-template-columns:1fr;gap:8px}
+  .photo-index-grid-rated,.photo-index-grid-recent,.photo-index-grid-taxonomic,.species-photo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .family-row,.photo-family-row{grid-template-columns:1fr;gap:8px}
   .species-list a{grid-template-columns:1fr 56px}
   .species-list em{display:none}
   .observation-list > div{grid-template-columns:96px 1fr 32px;gap:10px}
