@@ -1,14 +1,16 @@
 import { BirdingLanguageToggle } from "@/components/BirdingLanguageToggle";
 import { BirdName } from "@/components/BirdName";
 import { RatedPhotoArchive, RecentPhotoStrip } from "@/components/PhotoArchive";
-import { getRatedSpeciesRepresentatives, getRecentPhotos, groupedSpecies } from "@/lib/birding";
+import { getBirdingSpecies, getRatedSpeciesRepresentatives, getRecentPhotos, groupedSpecies } from "@/lib/birding";
 
 export const metadata = { title: "Birding" };
+export const dynamic = "force-dynamic";
 
-export default function BirdingPage() {
-  const groups = groupedSpecies();
-  const ratedPhotos = getRatedSpeciesRepresentatives();
-  const recentPhotos = getRecentPhotos();
+export default async function BirdingPage() {
+  const birds = await getBirdingSpecies();
+  const groups = groupedSpecies(birds);
+  const ratedPhotos = getRatedSpeciesRepresentatives(birds);
+  const recentPhotos = getRecentPhotos(birds);
 
   return (
     <section className="birding-page">
@@ -23,14 +25,14 @@ export default function BirdingPage() {
             <section className="taxon-order" key={order}>
               <div className="order-index"><h3>{order}</h3></div>
               <div className="family-list">
-                {Object.entries(families).map(([family, birds]) => (
+                {Object.entries(families).map(([family, familyBirds]) => (
                   <div className="family-row" key={family}>
                     <div className="family-name">
-                      <span>{birds[0]?.family}</span>
+                      <span>{familyBirds[0]?.family}</span>
                       <strong>{family}</strong>
                     </div>
                     <div className="species-list">
-                      {birds.map((bird) => (
+                      {familyBirds.map((bird) => (
                         <a href={`/birding/species/${bird.code}`} key={bird.code}>
                           <BirdName bird={bird} />
                           <em>{bird.scientificName}</em>
