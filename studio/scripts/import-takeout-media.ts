@@ -3,7 +3,13 @@ import {existsSync, readFileSync, statSync} from 'node:fs'
 import {basename, join} from 'node:path'
 import {getCliClient} from 'sanity/cli'
 
-const client = getCliClient({apiVersion: '2026-09-14'})
+// `sanity exec --with-user-token` gives this client the logged-in user's token.
+// Force the raw perspective so queries can see both published documents and
+// `drafts.*` documents. The importer always picks the draft explicitly below.
+const client = getCliClient({apiVersion: '2026-09-14'}).withConfig({
+  useCdn: false,
+  perspective: 'raw',
+})
 
 const source = process.argv.slice(2).find((arg) => !arg.startsWith('--'))
 
@@ -204,12 +210,21 @@ function imageValue(assetId: string) {
   return {_type: 'image', asset: {_type: 'reference', _ref: assetId}}
 }
 
-async function importBio() {
-  const doc = await client.fetch<{_id: string} | null>(
-    '*[_type == "bio" && _id in path("drafts.**")][0]{_id}',
-  )
-  if (!doc) throw new Error('Bio draft not found.')
+function pickDraft<T extends {_id: string}>(documents: T[]): T | null {
+  return documents.find((document) => document._id.startsWith('drafts.')) ?? null
+}
 
+async function importBio() {
+  const visible = await client.fetch<Array<{_id: string}>>('*[_type == "bio"]{_id}')
+  const doc = pickDraft(visible)
+
+  if (!doc) {
+    throw new Error(
+      `Bio draft not found. Visible bio IDs: ${visible.map((item) => item._id).join(', ') || '(none)'}`,
+    )
+  }
+
+  console.log(`found  Bio draft ${doc._id}`)
   const assetId = await uploadImage('Bio/228948c5535a6494fa9e6890c0694caa.jpg')
   await client
     .patch(doc._id)
@@ -226,11 +241,17 @@ async function importBio() {
 }
 
 async function importProject(slug: string, config: ProjectImport) {
-  const doc = await client.fetch<{_id: string; body?: any[]} | null>(
-    '*[_type == "project" && slug.current == $slug && _id in path("drafts.**")][0]{_id, body}',
+  const visible = await client.fetch<Array<{_id: string; body?: any[]}>>(
+    '*[_type == "project" && slug.current == $slug]{_id, body}',
     {slug},
   )
-  if (!doc) throw new Error(`Project draft not found: ${slug}`)
+  const doc = pickDraft(visible)
+
+  if (!doc) {
+    throw new Error(
+      `Project draft not found: ${slug}. Visible IDs: ${visible.map((item) => item._id).join(', ') || '(none)'}`,
+    )
+  }
 
   const textBlocks = (doc.body || []).filter((block) => block?._type === 'block')
   const neededTextCount =
@@ -293,7 +314,9 @@ async function main() {
     await importProject(slug, config)
   }
 
-  console.log('\nDone. Bio portrait, Work covers, project images, and YouTube embeds are now attached to the existing drafts.')
+  console.log(
+    '\nDone. Bio portrait, Work covers, project images, and YouTube embeds are now attached to the existing drafts.',
+  )
 }
 
 main().catch((error) => {
