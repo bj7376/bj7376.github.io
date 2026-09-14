@@ -95,7 +95,7 @@ export function AdminBirdingUploader() {
     return (
       <div className="admin-lock">
         <form onSubmit={(event) => { event.preventDefault(); void unlock(); }}>
-          <label htmlFor="admin-key">Admin key</label>
+          <label htmlFor="admin-key">Admin key <span style={{ color: "var(--muted)", fontWeight: 400 }}>· Hint: Murodo</span></label>
           <div>
             <input id="admin-key" type="password" value={adminKey} onChange={(event) => setAdminKey(event.target.value)} autoComplete="current-password" />
             <button type="submit" disabled={busy === "unlock"}>{busy === "unlock" ? "Checking…" : "Enter"}</button>
