@@ -4,12 +4,26 @@ import { BirdName } from "@/components/BirdName";
 import { BirdSearch } from "@/components/BirdSearch";
 import { RecentPhotoStrip } from "@/components/PhotoArchive";
 import { getBirdingSpecies, getRecentPhotos, groupedSpecies } from "@/lib/birding";
+import { getBirdingLastUpdated } from "@/lib/birding-status";
 
 export const metadata = { title: "Birding" };
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
+function displayUpdatedDate(value: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Asia/Seoul",
+  }).format(new Date(value));
+}
 
 export default async function BirdingPage() {
-  const birds = await getBirdingSpecies();
+  const [birds, lastUpdated] = await Promise.all([
+    getBirdingSpecies(),
+    getBirdingLastUpdated(),
+  ]);
   const groups = groupedSpecies(birds);
   const recentPhotos = getRecentPhotos(birds);
   const searchBirds = birds.map(({ code, commonName, koreanName, scientificName }) => ({ code, commonName, koreanName, scientificName }));
@@ -63,6 +77,12 @@ export default async function BirdingPage() {
       <div className="all-photographs-link-row all-photographs-link-bottom">
         <Link href="/birding/photographs">View the latest photograph of every species ↗</Link>
       </div>
+
+      {lastUpdated && (
+        <div className="all-photographs-link-row birding-update-row">
+          <span className="birding-update-note">This page was last updated on {displayUpdatedDate(lastUpdated)}.</span>
+        </div>
+      )}
     </section>
   );
 }
