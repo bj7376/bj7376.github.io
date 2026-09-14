@@ -1,7 +1,8 @@
+import Link from "next/link";
 import { BirdingLanguageToggle } from "@/components/BirdingLanguageToggle";
 import { BirdName } from "@/components/BirdName";
-import { RatedPhotoArchive, RecentPhotoStrip } from "@/components/PhotoArchive";
-import { getBirdingSpecies, getRatedSpeciesRepresentatives, getRecentPhotos, groupedSpecies } from "@/lib/birding";
+import { RecentPhotoStrip } from "@/components/PhotoArchive";
+import { getBirdingSpecies, getRecentPhotos, groupedSpecies } from "@/lib/birding";
 
 export const metadata = { title: "Birding" };
 export const dynamic = "force-dynamic";
@@ -9,7 +10,6 @@ export const dynamic = "force-dynamic";
 export default async function BirdingPage() {
   const birds = await getBirdingSpecies();
   const groups = groupedSpecies(birds);
-  const ratedPhotos = getRatedSpeciesRepresentatives(birds);
   const recentPhotos = getRecentPhotos(birds);
 
   return (
@@ -18,6 +18,10 @@ export default async function BirdingPage() {
         <span className="bird-language-label">Bird names</span>
         <BirdingLanguageToggle />
       </header>
+
+      <div className="all-photographs-link-row">
+        <Link href="/birding/photographs">View the latest photograph of every species ↗</Link>
+      </div>
 
       <section className="field-guide minimal-field-guide">
         <div className="field-guide-index">
@@ -47,14 +51,9 @@ export default async function BirdingPage() {
         </div>
       </section>
 
-      <section className="birding-section archive-section">
-        <div className="minimal-section-heading"><h2>All photographs</h2></div>
-        <RatedPhotoArchive photos={ratedPhotos} limit={5} showMore />
-      </section>
-
       <section className="birding-section recent-photo-section">
         <div className="minimal-section-heading"><h2>Recent photographs</h2></div>
-        <RecentPhotoStrip photos={recentPhotos} limit={5} />
+        <RecentPhotoStrip photos={recentPhotos} limit={10} />
       </section>
     </section>
   );
