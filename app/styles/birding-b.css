@@ -15,9 +15,8 @@
 .family-row:last-child{padding-bottom:0}
 .family-name span{display:block;font-size:var(--t-meta);font-style:italic;color:var(--muted);line-height:1.45}
 .family-name strong{display:block;margin-top:1px;font-size:var(--t-meta);font-weight:400;color:var(--ink);line-height:1.45}
-.species-list a{display:grid;grid-template-columns:minmax(150px,1fr) minmax(150px,1fr) 56px;gap:16px;padding:5px 0;border-bottom:1px solid var(--rule);color:var(--ink)}
+.species-list a{display:grid;grid-template-columns:minmax(150px,1fr) minmax(150px,1fr);gap:16px;padding:5px 0;border-bottom:1px solid var(--rule);color:var(--ink)}
 .species-list a:first-child{border-top:1px solid var(--rule)}
 .species-list a:hover .bird-name{text-decoration:underline;text-decoration-color:var(--ink)}
 .species-list .bird-name{font-size:var(--t-meta);line-height:1.55}
 .species-list em{font-size:var(--t-meta);font-style:italic;color:var(--muted);line-height:1.55}
-.species-list small{font-size:var(--t-micro);color:var(--muted);text-align:right;line-height:1.85;white-space:nowrap}
