@@ -1,0 +1,26 @@
+.species-media-list{border-top:1px solid var(--rule)}
+.species-media-list > a{display:grid;grid-template-columns:120px 1fr 110px 24px;gap:16px;padding:7px 0;border-bottom:1px solid var(--rule);font-size:var(--t-meta);line-height:1.55;color:var(--ink)}
+.species-media-list strong{font-weight:400}
+.species-media-list time,.species-media-list span{color:var(--muted)}
+.species-media-list > a > span:last-child{text-align:right}
+.species-media-list > a:hover strong{text-decoration:underline;text-underline-offset:3px}
+
+.admin-page{max-width:none;margin:0;padding:64px 0 0;min-height:58vh}
+.admin-header{display:grid;grid-template-columns:var(--rail) 1fr;column-gap:var(--gap);padding:0 0 44px}
+.admin-header h1{margin:0;font-size:var(--t-body);font-weight:400;line-height:1.45;color:var(--muted)}
+.admin-header p{grid-column:2;margin:0;max-width:600px;font-size:var(--t-body);line-height:1.65}
+.admin-lock,.admin-uploader{display:grid;grid-template-columns:var(--rail) 1fr;column-gap:var(--gap);padding:44px 0;border-top:1px solid var(--rule)}
+.admin-lock > form,.admin-uploader > *{grid-column:2}
+.admin-lock form > label{display:block;margin-bottom:10px;font-size:var(--t-meta);color:var(--muted)}
+.admin-lock form > div{display:flex;gap:12px;max-width:520px}
+.admin-lock input{flex:1;min-width:0;padding:8px 0;border:0;border-bottom:1px solid var(--ink);border-radius:0;background:transparent;font:inherit;outline:none}
+.admin-lock button,.admin-lock-button,.upload-button{border:0;background:none;padding:0;font:inherit;font-size:var(--t-meta);text-decoration:underline;text-underline-offset:3px;cursor:pointer;color:var(--ink)}
+.admin-upload-list{border-top:1px solid var(--rule)}
+.admin-upload-row{display:grid;grid-template-columns:minmax(210px,1fr) 180px 110px;gap:20px;align-items:center;padding:12px 0;border-bottom:1px solid var(--rule)}
+.admin-upload-copy strong{display:block;font-size:var(--t-meta);font-weight:400}
+.admin-upload-copy span,.admin-upload-row time{display:block;font-size:var(--t-micro);color:var(--muted)}
+.upload-button{text-align:right}
+.upload-button input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.upload-button.disabled{color:var(--muted);cursor:default;text-decoration:none}
+.admin-message{margin:16px 0 0;font-size:var(--t-meta);color:var(--muted)}
+.admin-lock-button{margin-top:24px;color:var(--muted)}
