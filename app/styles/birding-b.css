@@ -20,3 +20,12 @@
 .species-list a:hover .bird-name{text-decoration:underline;text-decoration-color:var(--ink)}
 .species-list .bird-name{font-size:var(--t-meta);line-height:1.55}
 .species-list em{font-size:var(--t-meta);font-style:italic;color:var(--muted);line-height:1.55}
+
+.photo-taxonomy-archive{margin-top:40px}
+.photo-taxon-order{display:grid;grid-template-columns:var(--rail) 1fr;column-gap:var(--gap);padding:0 0 38px}
+.photo-order-index h2{margin:0;font-size:var(--t-meta);font-weight:400;color:var(--muted);line-height:1.45}
+.photo-family-row{display:grid;grid-template-columns:170px 1fr;gap:20px;padding:0 0 30px}
+.photo-family-row:last-child{padding-bottom:0}
+.photo-family-name span{display:block;font-size:var(--t-meta);font-style:italic;color:var(--muted);line-height:1.45}
+.photo-family-name strong{display:block;margin-top:1px;font-size:var(--t-meta);font-weight:400;color:var(--ink);line-height:1.45}
+.photo-index-grid-taxonomic{grid-template-columns:repeat(4,minmax(0,1fr));gap:24px 14px}
