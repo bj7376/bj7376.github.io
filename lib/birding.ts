@@ -105,24 +105,14 @@ function dateOnly(value: string | null | undefined) {
   return value ? value.slice(0, 10) : "";
 }
 
-function qualitySort(a: BirdPhoto, b: BirdPhoto) {
-  const rating = (b.rating ?? -1) - (a.rating ?? -1);
-  if (rating) return rating;
-  const ratingCount = (b.ratingCount ?? -1) - (a.ratingCount ?? -1);
-  if (ratingCount) return ratingCount;
+function newestPhotoSort(a: BirdPhoto, b: BirdPhoto) {
   return b.takenAt.localeCompare(a.takenAt) || Number(b.id) - Number(a.id);
 }
 
-function representativeSort(a: RankedPhoto, b: RankedPhoto) {
-  const rating = (b.photo.rating ?? -1) - (a.photo.rating ?? -1);
-  if (rating) return rating;
-  const ratingCount = (b.photo.ratingCount ?? -1) - (a.photo.ratingCount ?? -1);
-  if (ratingCount) return ratingCount;
-
-  // If rating data is unavailable, keep All photographs stable and distinct
-  // from Recent photographs by falling back to taxonomy rather than recency.
-  return a.bird.taxonomicOrder - b.bird.taxonomicOrder
-    || a.bird.commonName.localeCompare(b.bird.commonName);
+function isPhotograph(mediaType: string | null | undefined) {
+  if (!mediaType) return true;
+  const normalized = mediaType.trim().toLowerCase();
+  return normalized === "photo" || normalized === "image";
 }
 
 export async function getBirdingSpecies(): Promise<Species[]> {
@@ -153,25 +143,28 @@ export async function getBirdingSpecies(): Promise<Species[]> {
     const familyCommon = taxon.family_common_name?.trim() || family;
 
     const birdMedia = mediaBySpecies.get(taxon.species_code) ?? [];
-    const photos = birdMedia.map<BirdPhoto>((item) => {
-      const location = item.location_name
-        || (item.location_id ? locationsById.get(item.location_id)?.name : undefined)
-        || "";
-      const takenAt = dateOnly(item.taken_at);
-      return {
-        id: String(item.ml_asset_id),
-        label: englishName,
-        year: takenAt ? Number(takenAt.slice(0, 4)) : 0,
-        takenAt,
-        location,
-        rating: numeric(item.rating),
-        ratingCount: item.rating_count ?? undefined,
-        src: item.thumbnail_url || `https://cdn.download.ams.birds.cornell.edu/api/v2/asset/${item.ml_asset_id}/1200`,
-        sourceUrl: item.source_url || `https://macaulaylibrary.org/asset/${item.ml_asset_id}`,
-        checklistId: item.checklist_id ?? undefined,
-        mediaType: item.media_type ?? undefined,
-      };
-    }).sort(qualitySort);
+    const photos = birdMedia
+      .filter((item) => isPhotograph(item.media_type))
+      .map<BirdPhoto>((item) => {
+        const location = item.location_name
+          || (item.location_id ? locationsById.get(item.location_id)?.name : undefined)
+          || "";
+        const takenAt = dateOnly(item.taken_at);
+        return {
+          id: String(item.ml_asset_id),
+          label: englishName,
+          year: takenAt ? Number(takenAt.slice(0, 4)) : 0,
+          takenAt,
+          location,
+          rating: numeric(item.rating),
+          ratingCount: item.rating_count ?? undefined,
+          src: item.thumbnail_url || `https://cdn.download.ams.birds.cornell.edu/api/v2/asset/${item.ml_asset_id}/1200`,
+          sourceUrl: item.source_url || `https://macaulaylibrary.org/asset/${item.ml_asset_id}`,
+          checklistId: item.checklist_id ?? undefined,
+          mediaType: item.media_type ?? undefined,
+        };
+      })
+      .sort(newestPhotoSort);
 
     const checklistIds = [...new Set(birdMedia.map((item) => item.checklist_id).filter((id): id is string => Boolean(id)))];
     const relatedChecklists = checklistIds.map<RelatedChecklist>((id) => {
@@ -216,20 +209,20 @@ export function groupedSpecies(birds: Species[]) {
 }
 
 export function getHeroPhoto(bird: Species) {
-  return [...bird.photos].sort(qualitySort)[0];
+  return bird.photos[0];
 }
 
-export function getRatedSpeciesRepresentatives(birds: Species[]): RankedPhoto[] {
+export function getLatestSpeciesRepresentatives(birds: Species[]): RankedPhoto[] {
   return birds
     .map((bird) => ({ bird, photo: getHeroPhoto(bird) }))
     .filter((item): item is RankedPhoto => Boolean(item.photo))
-    .sort(representativeSort);
+    .sort((a, b) => a.bird.taxonomicOrder - b.bird.taxonomicOrder || a.bird.commonName.localeCompare(b.bird.commonName));
 }
 
 export function getRecentPhotos(birds: Species[]): RankedPhoto[] {
   const newestFirst = birds
     .flatMap((bird) => bird.photos.map((photo) => ({ bird, photo })))
-    .sort((a, b) => b.photo.takenAt.localeCompare(a.photo.takenAt) || Number(b.photo.id) - Number(a.photo.id));
+    .sort((a, b) => newestPhotoSort(a.photo, b.photo));
 
   const seen = new Set<string>();
   return newestFirst.filter(({ bird }) => {
