@@ -17,6 +17,8 @@
 .all-photographs-link-row a{grid-column:2;width:max-content;text-decoration:underline;text-decoration-color:var(--rule)}
 .all-photographs-link-row a:hover{text-decoration-color:var(--ink)}
 .all-photographs-link-bottom{padding:34px 0 0;border-top:1px solid var(--rule)}
+.birding-update-row{padding:12px 0 0}
+.birding-update-note{grid-column:2;font-size:var(--t-meta);color:var(--muted)}
 
 .bird-search{width:100%;position:relative}
 .bird-search-input-wrap{position:relative}
