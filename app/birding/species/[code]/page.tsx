@@ -4,6 +4,7 @@ import { BirdName } from "@/components/BirdName";
 import { getBirdingSpecies, getHeroPhoto, getSpecies, type BirdMedia } from "@/lib/birding";
 
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 function displayDate(date: string) {
   if (!date) return "";
