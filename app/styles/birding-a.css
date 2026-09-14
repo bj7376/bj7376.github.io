@@ -1,0 +1,34 @@
+/* =========================================================================
+   Birding — photograph archive + taxonomic index
+   ========================================================================= */
+.birding-page,.species-page{max-width:none;margin:0;padding:64px 0 0}
+
+.birding-minimal-header{
+  display:grid;grid-template-columns:var(--rail) 1fr;column-gap:var(--gap);
+  align-items:baseline;padding:0 0 44px;border-bottom:0;
+}
+.bird-language-label{margin:0;font-size:var(--t-meta);font-weight:400;line-height:1.45;color:var(--muted)}
+.birding-minimal-header .bird-language-toggle{grid-column:2;justify-self:end}
+
+.bird-language-toggle{
+  display:flex;flex-direction:row;align-items:baseline;gap:7px;
+  white-space:nowrap;font-size:var(--t-meta);color:var(--muted);
+}
+.bird-language-toggle > span{font-size:var(--t-meta);color:var(--rule);letter-spacing:0;text-transform:none}
+.bird-language-toggle button{padding:0;border:0;background:none;cursor:pointer;color:var(--muted)}
+.bird-language-toggle button:hover{color:var(--ink)}
+.bird-language-toggle button.active{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.bird-name-ko{display:none}
+html[data-bird-language="ko"] .bird-name-en{display:none}
+html[data-bird-language="ko"] .bird-name-ko{display:inline}
+.photo-index-grid{display:grid;gap:26px 16px}
+.photo-index-grid-rated{grid-template-columns:repeat(5,minmax(0,1fr))}
+.photo-index-grid-recent{grid-template-columns:repeat(5,minmax(0,1fr))}
+.photo-index-item{display:block;color:var(--ink)}
+.photo-index-image{aspect-ratio:4/3;background:var(--soft);position:relative;overflow:hidden;filter:none}
+.photo-index-image img{width:100%;height:100%;object-fit:cover;filter:none}
+.photo-index-image > span{position:absolute;left:8px;bottom:6px;font-size:var(--t-meta);color:var(--muted);z-index:1}
+.photo-index-image:has(img):before,.photo-index-image:has(img):after{display:none}
+.photo-index-caption{display:block;margin-top:7px;font-size:var(--t-meta);line-height:1.45}
+.photo-index-item:hover .photo-index-caption{text-decoration:underline;text-decoration-color:var(--ink)}
+.photo-index-caption time{display:block;font-size:var(--t-micro);color:var(--muted);text-decoration:none}
