@@ -38,7 +38,10 @@ export default async function SpeciesPage({ params }: { params: Promise<{ code: 
   if (!bird) notFound();
 
   const heroPhoto = getHeroPhoto(bird);
-  const photos = bird.photos;
+  const heroPhotoSrc = heroPhoto
+    ? `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${heroPhoto.id}/2400`
+    : undefined;
+  const photos = bird.photos.filter((photo) => photo.id !== heroPhoto?.id);
 
   return (
     <article className="species-page">
@@ -59,28 +62,30 @@ export default async function SpeciesPage({ params }: { params: Promise<{ code: 
         <figure className="species-hero-image">
           <a className="species-hero-link" href={heroPhoto.sourceUrl} target="_blank" rel="noreferrer">
             <div aria-hidden="true">
-              {heroPhoto.src ? <img src={heroPhoto.src} alt="" /> : <span>{bird.commonName.slice(0, 1)}</span>}
+              {heroPhotoSrc ? <img src={heroPhotoSrc} alt="" fetchPriority="high" /> : <span>{bird.commonName.slice(0, 1)}</span>}
             </div>
             <figcaption>{heroPhoto.location} · {heroPhoto.takenAt}</figcaption>
           </a>
         </figure>
       )}
 
-      <section className="species-section">
-        <div className="minimal-section-heading"><h2>Photographs</h2></div>
-        <div className="photo-index-grid species-photo-grid">
-          {photos.map((photo) => (
-            <figure className="species-photo" key={photo.id}>
-              <a href={photo.sourceUrl} target="_blank" rel="noreferrer">
-                <div className="photo-index-image">
-                  {photo.src ? <img src={photo.src} alt="" /> : <span>{bird.commonName.slice(0, 1)}</span>}
-                </div>
-                <figcaption>{photo.location} · {photo.takenAt}</figcaption>
-              </a>
-            </figure>
-          ))}
-        </div>
-      </section>
+      {photos.length > 0 && (
+        <section className="species-section">
+          <div className="minimal-section-heading"><h2>Photographs</h2></div>
+          <div className="photo-index-grid species-photo-grid">
+            {photos.map((photo) => (
+              <figure className="species-photo" key={photo.id}>
+                <a href={photo.sourceUrl} target="_blank" rel="noreferrer">
+                  <div className="photo-index-image">
+                    {photo.src ? <img src={photo.src} alt="" /> : <span>{bird.commonName.slice(0, 1)}</span>}
+                  </div>
+                  <figcaption>{photo.location} · {photo.takenAt}</figcaption>
+                </a>
+              </figure>
+            ))}
+          </div>
+        </section>
+      )}
 
       {bird.videos.length > 0 && (
         <section className="species-section species-media-section">
