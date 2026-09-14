@@ -31,7 +31,7 @@ button{font:inherit;color:inherit}
   --rail:148px;
   --gap:36px;
   --measure:64ch;
-  --page:920px;
+  --page:1000px;
   --edge:28px;
 }
 body{
@@ -48,7 +48,7 @@ a{color:var(--ink);text-decoration:none;text-underline-offset:3px;text-decoratio
 .bio-copy a,.publication-title,.original-project-prose a{text-decoration:underline;text-decoration-color:var(--rule)}
 a:hover{text-decoration:underline;text-decoration-color:currentColor}
 a:focus-visible,button:focus-visible{outline:1px solid var(--ink);outline-offset:3px;text-decoration:none}
-.shell{width:100%;max-width:var(--page);margin:0 auto 0 0;padding:0 var(--edge)}
+.shell{width:100%;max-width:var(--page);margin:0 auto;padding:0 var(--edge)}
 main{max-width:none;margin:0}
 .site-header{
   height:58px;display:flex;align-items:center;justify-content:space-between;gap:24px;
