@@ -12,10 +12,33 @@
 
 .all-photographs-link-row{
   display:grid;grid-template-columns:var(--rail) 1fr;column-gap:var(--gap);
-  padding:0 0 44px;font-size:var(--t-body);line-height:1.55;
+  font-size:var(--t-body);line-height:1.55;
 }
 .all-photographs-link-row a{grid-column:2;width:max-content;text-decoration:underline;text-decoration-color:var(--rule)}
 .all-photographs-link-row a:hover{text-decoration-color:var(--ink)}
+.all-photographs-link-bottom{padding:34px 0 0;border-top:1px solid var(--rule)}
+
+.bird-search{width:100%;position:relative}
+.bird-search-input-wrap{position:relative}
+.bird-search input[type="search"]{
+  width:100%;padding:8px 0;border:0;border-bottom:1px solid var(--ink);border-radius:0;
+  background:transparent;color:var(--ink);font:inherit;font-size:var(--t-body);outline:none;
+  -webkit-appearance:none;appearance:none;
+}
+.bird-search input[type="search"]::placeholder{color:var(--muted)}
+.bird-search-results{
+  position:absolute;z-index:12;left:0;right:0;top:100%;background:#fff;
+  border-bottom:1px solid var(--ink);box-shadow:0 8px 18px rgba(0,0,0,.06);
+}
+.bird-search-results a{
+  display:grid;grid-template-columns:minmax(150px,1fr) minmax(110px,.8fr) minmax(150px,1fr);
+  gap:16px;padding:7px 0;border-bottom:1px solid var(--rule);font-size:var(--t-meta);line-height:1.5;
+}
+.bird-search-results a:last-child{border-bottom:0}
+.bird-search-results a:hover{text-decoration:none;background:var(--soft)}
+.bird-search-results .bird-search-korean,.bird-search-results em{color:var(--muted)}
+.bird-search-results em{font-style:italic}
+.bird-search-empty{margin:0;padding:9px 0;font-size:var(--t-meta);color:var(--muted)}
 
 .bird-language-toggle{
   display:flex;flex-direction:row;align-items:baseline;gap:7px;
