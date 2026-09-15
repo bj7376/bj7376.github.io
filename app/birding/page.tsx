@@ -26,7 +26,7 @@ export default async function BirdingPage() {
   ]);
   const groups = groupedSpecies(birds);
   const recentPhotos = getRecentPhotos(birds);
-  const searchBirds = birds.map(({ code, commonName, koreanName, scientificName }) => ({ code, commonName, koreanName, scientificName }));
+  const searchBirds = birds.map(({ slug, commonName, koreanName, scientificName }) => ({ slug, commonName, koreanName, scientificName }));
 
   return (
     <section className="birding-page">
@@ -55,7 +55,7 @@ export default async function BirdingPage() {
                     </div>
                     <div className="species-list">
                       {familyBirds.map((bird) => (
-                        <a href={`/birding/species/${bird.code}`} key={bird.code}>
+                        <a href={`/birding/species/${bird.slug}`} key={bird.code}>
                           <BirdName bird={bird} />
                           <em>{bird.scientificName}</em>
                         </a>
