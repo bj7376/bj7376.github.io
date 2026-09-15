@@ -31,6 +31,7 @@
 .observation-list span,.observation-list time{color:var(--muted)}
 .observation-list > div > span:last-child,.observation-list > a > span:last-child{text-align:right}
 .related-checklist-list > div,.related-checklist-list > a{grid-template-columns:120px 1fr 24px}
+.related-checklist-list > a.observation-only,.related-checklist-list > a.observation-only strong{color:var(--muted)}
 .related-checklist-list > a:hover strong{text-decoration:underline;text-underline-offset:3px}
 .empty-state{padding:18px 0;color:var(--muted);font-size:var(--t-meta)}
 .article-page{max-width:none;padding:64px 0 0}
