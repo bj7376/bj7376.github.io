@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { BirdingLanguageToggle } from "@/components/BirdingLanguageToggle";
 import { BirdName } from "@/components/BirdName";
+import { SpeciesObservationMap } from "@/components/SpeciesObservationMap";
 import { getBirdingSpecies, getHeroPhoto, getSpecies, type BirdMedia } from "@/lib/birding";
 
 export const dynamic = "force-dynamic";
@@ -98,6 +99,13 @@ export default async function SpeciesPage({ params }: SpeciesPageProps) {
             <figcaption>{heroPhoto.location} · {heroPhoto.takenAt}</figcaption>
           </a>
         </figure>
+      )}
+
+      {bird.observationLocations.length > 0 && (
+        <section className="species-section species-map-section">
+          <div className="minimal-section-heading"><h2>Observed locations</h2></div>
+          <SpeciesObservationMap points={bird.observationLocations} />
+        </section>
       )}
 
       {photos.length > 0 && (
