@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 const FUNCTION_URL = "https://ifqrvugxfmeclaqadqbd.supabase.co/functions/v1/admin-birding-import";
+const OBSERVATIONS_FUNCTION_URL = "https://ifqrvugxfmeclaqadqbd.supabase.co/functions/v1/admin-ebird-observations";
 
 type UploadKind = "ml_photo" | "ml_video" | "ml_audio" | "ebird";
 type UploadState = { last_success_at: string | null; metadata?: Record<string, unknown> } | null;
@@ -51,6 +52,16 @@ export function AdminBirdingUploader() {
     });
   }
 
+  async function requestObservations(key: string, file: File) {
+    const form = new FormData();
+    form.append("file", file);
+    return fetch(OBSERVATIONS_FUNCTION_URL, {
+      method: "POST",
+      headers: { "x-admin-key": key },
+      body: form,
+    });
+  }
+
   async function unlock(key = adminKey, showError = true) {
     if (!key) return;
     setBusy("unlock");
@@ -81,9 +92,21 @@ export function AdminBirdingUploader() {
       const response = await request(adminKey, { method: "POST", body: form });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "Upload failed");
+
+      let observationCount: number | undefined;
+      if (kind === "ebird") {
+        const observationResponse = await requestObservations(adminKey, file);
+        const observationBody = await observationResponse.json();
+        if (!observationResponse.ok) {
+          throw new Error(`eBird data uploaded, but observation locations failed: ${observationBody.error || "Unknown error"}`);
+        }
+        if (typeof observationBody.observations === "number") observationCount = observationBody.observations;
+      }
+
       setUploads(body.uploads || {});
       const count = body.result?.rows;
-      setMessage(`${file.name} uploaded${typeof count === "number" ? ` · ${count} rows` : ""}.`);
+      const observations = typeof observationCount === "number" ? ` · ${observationCount} observations` : "";
+      setMessage(`${file.name} uploaded${typeof count === "number" ? ` · ${count} rows` : ""}${observations}.`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error));
     } finally {
