@@ -23,6 +23,7 @@ export type RelatedChecklist = {
 
 export type Species = {
   code: string;
+  slug: string;
   commonName: string;
   koreanName: string;
   scientificName: string;
@@ -40,6 +41,7 @@ export type RankedPhoto = { bird: Species; photo: BirdPhoto };
 
 type DbTaxon = {
   species_code: string;
+  ebird_species_code: string | null;
   common_name: string;
   scientific_name: string;
   korean_name: string | null;
@@ -77,7 +79,7 @@ type DbLocation = {
 };
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://ifqrvugxfmeclaqadqbd.supabase.co";
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmcXJ2dWd4Zm1lY2xhcWFkcWJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzOTI3MzcsImV4cCI6MjEwNDk2ODczN30.M3iMKEBs8JFzboUWBCt3CtYCbqIma8zmQ7KL2LqWE9Y";
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmcXJ2dWd4Zm1lY2xhcWFkcWJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzOTI3MzcsImV4cCI6MjE0NzQ4MzY0N30.h1yxdgWFnFtER-vMGPlmqhYR_fStUYxXHjw7uCUIcLw";
 const PAGE_SIZE = 1000;
 
 async function fetchTable<T>(table: string, select = "*"): Promise<T[]> {
@@ -191,6 +193,7 @@ export async function getBirdingSpecies(): Promise<Species[]> {
 
     return {
       code: taxon.species_code,
+      slug: taxon.ebird_species_code?.trim() || taxon.species_code,
       commonName: englishName,
       koreanName,
       scientificName: taxon.scientific_name,
@@ -209,7 +212,7 @@ export async function getBirdingSpecies(): Promise<Species[]> {
 }
 
 export function getSpecies(birds: Species[], code: string) {
-  return birds.find((bird) => bird.code === code);
+  return birds.find((bird) => bird.slug === code || bird.code === code);
 }
 
 export function groupedSpecies(birds: Species[]) {
