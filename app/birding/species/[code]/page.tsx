@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { BirdingLanguageToggle } from "@/components/BirdingLanguageToggle";
 import { BirdName } from "@/components/BirdName";
@@ -5,6 +6,8 @@ import { getBirdingSpecies, getHeroPhoto, getSpecies, type BirdMedia } from "@/l
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
+
+type SpeciesPageProps = { params: Promise<{ code: string }> };
 
 function displayDate(date: string) {
   if (!date) return "";
@@ -14,6 +17,33 @@ function displayDate(date: string) {
     year: "numeric",
     timeZone: "UTC",
   }).format(new Date(`${date}T00:00:00Z`));
+}
+
+export async function generateMetadata({ params }: SpeciesPageProps): Promise<Metadata> {
+  const { code } = await params;
+  const birds = await getBirdingSpecies();
+  const bird = getSpecies(birds, code);
+
+  if (!bird) return { title: "Birding" };
+
+  const title = bird.commonName;
+  const fullTitle = `${bird.commonName} — Byoungjae Kim`;
+  const description = `${bird.commonName} (${bird.scientificName}) in Byoungjae Kim's personal birding archive.`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title: fullTitle,
+      description,
+      type: "website",
+    },
+    twitter: {
+      card: "summary",
+      title: fullTitle,
+      description,
+    },
+  };
 }
 
 function MediaRows({ items }: { items: BirdMedia[] }) {
@@ -31,7 +61,7 @@ function MediaRows({ items }: { items: BirdMedia[] }) {
   );
 }
 
-export default async function SpeciesPage({ params }: { params: Promise<{ code: string }> }) {
+export default async function SpeciesPage({ params }: SpeciesPageProps) {
   const { code } = await params;
   const birds = await getBirdingSpecies();
   const bird = getSpecies(birds, code);
