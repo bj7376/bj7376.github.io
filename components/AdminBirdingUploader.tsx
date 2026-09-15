@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 const FUNCTION_URL = "https://ifqrvugxfmeclaqadqbd.supabase.co/functions/v1/admin-birding-import";
+const EBIRD_FUNCTION_URL = "https://ifqrvugxfmeclaqadqbd.supabase.co/functions/v1/admin-ebird-import";
 const OBSERVATIONS_FUNCTION_URL = "https://ifqrvugxfmeclaqadqbd.supabase.co/functions/v1/admin-ebird-observations";
 
 type UploadKind = "ml_photo" | "ml_video" | "ml_audio" | "ebird";
@@ -52,6 +53,14 @@ export function AdminBirdingUploader() {
     });
   }
 
+  async function requestEbird(key: string, form: FormData) {
+    return fetch(EBIRD_FUNCTION_URL, {
+      method: "POST",
+      headers: { "x-admin-key": key },
+      body: form,
+    });
+  }
+
   async function requestObservations(key: string, file: File) {
     const form = new FormData();
     form.append("file", file);
@@ -89,7 +98,9 @@ export function AdminBirdingUploader() {
       const form = new FormData();
       form.append("kind", kind);
       form.append("file", file);
-      const response = await request(adminKey, { method: "POST", body: form });
+      const response = kind === "ebird"
+        ? await requestEbird(adminKey, form)
+        : await request(adminKey, { method: "POST", body: form });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "Upload failed");
 
