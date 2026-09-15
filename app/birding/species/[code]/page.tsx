@@ -101,13 +101,6 @@ export default async function SpeciesPage({ params }: SpeciesPageProps) {
         </figure>
       )}
 
-      {bird.observationLocations.length > 0 && (
-        <section className="species-section species-map-section">
-          <div className="minimal-section-heading"><h2>Observed locations</h2></div>
-          <SpeciesObservationMap points={bird.observationLocations} />
-        </section>
-      )}
-
       {photos.length > 0 && (
         <section className="species-section">
           <div className="minimal-section-heading"><h2>Photographs</h2></div>
@@ -152,6 +145,13 @@ export default async function SpeciesPage({ params }: SpeciesPageProps) {
           ))}
         </div>
       </section>
+
+      {bird.observationLocations.length > 0 && (
+        <section className="species-section species-map-section">
+          <div className="minimal-section-heading"><h2>My observed locations</h2></div>
+          <SpeciesObservationMap points={bird.observationLocations} />
+        </section>
+      )}
     </article>
   );
 }
