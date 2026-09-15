@@ -54,12 +54,23 @@ export default async function BirdingPage() {
                       <strong>{family}</strong>
                     </div>
                     <div className="species-list">
-                      {familyBirds.map((bird) => (
-                        <a href={`/birding/species/${bird.slug}`} key={bird.code}>
-                          <BirdName bird={bird} />
-                          <em>{bird.scientificName}</em>
-                        </a>
-                      ))}
+                      {familyBirds.map((bird) => {
+                        const observationOnly = bird.photos.length === 0
+                          && bird.videos.length === 0
+                          && bird.audio.length === 0
+                          && bird.observationLocations.length > 0;
+
+                        return (
+                          <a
+                            href={`/birding/species/${bird.slug}`}
+                            className={observationOnly ? "observation-only" : undefined}
+                            key={bird.code}
+                          >
+                            <BirdName bird={bird} />
+                            <em>{bird.scientificName}</em>
+                          </a>
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
