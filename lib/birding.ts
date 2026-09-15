@@ -21,6 +21,13 @@ export type RelatedChecklist = {
   url: string;
 };
 
+export type ObservationLocation = {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+};
+
 export type Species = {
   code: string;
   slug: string;
@@ -34,6 +41,7 @@ export type Species = {
   photos: BirdPhoto[];
   videos: BirdMedia[];
   audio: BirdMedia[];
+  observationLocations: ObservationLocation[];
   relatedChecklists: RelatedChecklist[];
 };
 
@@ -76,10 +84,20 @@ type DbChecklist = {
 type DbLocation = {
   location_id: string;
   name: string;
+  latitude: number | null;
+  longitude: number | null;
+};
+
+type DbSpeciesLocation = {
+  species_code: string;
+  location_id: string;
+  location_name: string;
+  latitude: number;
+  longitude: number;
 };
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://ifqrvugxfmeclaqadqbd.supabase.co";
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmcXJ2dWd4Zm1lY2xhcWFkcWJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzOTI3MzcsImV4cCI6MjEwNDk2ODczN30.M3iMKEBs8JFzboUWBCt3CtYCbqIma8zmQ7KL2LqWE9Y";
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInR5cCI6IkpXVCJ9";
 const PAGE_SIZE = 1000;
 
 async function fetchTable<T>(table: string, select = "*"): Promise<T[]> {
@@ -123,22 +141,30 @@ function mediaKind(mediaType: string | null | undefined): "photo" | "video" | "a
 }
 
 export async function getBirdingSpecies(): Promise<Species[]> {
-  const [taxa, media, checklists, locations] = await Promise.all([
+  const [taxa, media, checklists, locations, speciesLocations] = await Promise.all([
     fetchTable<DbTaxon>("taxa"),
     fetchTable<DbMedia>("media"),
     fetchTable<DbChecklist>("checklists"),
     fetchTable<DbLocation>("locations"),
+    fetchTable<DbSpeciesLocation>("public_species_locations"),
   ]);
 
   const locationsById = new Map(locations.map((location) => [location.location_id, location]));
   const checklistsById = new Map(checklists.map((checklist) => [checklist.checklist_id, checklist]));
   const mediaBySpecies = new Map<string, DbMedia[]>();
+  const observationLocationsBySpecies = new Map<string, DbSpeciesLocation[]>();
 
   for (const item of media) {
     if (!item.is_public) continue;
     const list = mediaBySpecies.get(item.species_code) ?? [];
     list.push(item);
     mediaBySpecies.set(item.species_code, list);
+  }
+
+  for (const location of speciesLocations) {
+    const list = observationLocationsBySpecies.get(location.species_code) ?? [];
+    list.push(location);
+    observationLocationsBySpecies.set(location.species_code, list);
   }
 
   const birds = taxa.map<Species>((taxon) => {
@@ -176,6 +202,32 @@ export async function getBirdingSpecies(): Promise<Species[]> {
     const videos = allMedia.filter((item) => item.mediaType === "video").sort(newestMediaSort);
     const audio = allMedia.filter((item) => item.mediaType === "audio").sort(newestMediaSort);
 
+    const locationMap = new Map<string, ObservationLocation>();
+    for (const item of observationLocationsBySpecies.get(taxon.species_code) ?? []) {
+      locationMap.set(item.location_id, {
+        id: item.location_id,
+        name: item.location_name,
+        latitude: item.latitude,
+        longitude: item.longitude,
+      });
+    }
+
+    for (const item of birdMedia) {
+      if (!item.checklist_id) continue;
+      const checklist = checklistsById.get(item.checklist_id);
+      if (!checklist?.location_id || locationMap.has(checklist.location_id)) continue;
+      const location = locationsById.get(checklist.location_id);
+      if (location?.latitude === null || location?.latitude === undefined || location?.longitude === null || location?.longitude === undefined) continue;
+      locationMap.set(location.location_id, {
+        id: location.location_id,
+        name: location.name,
+        latitude: location.latitude,
+        longitude: location.longitude,
+      });
+    }
+
+    const observationLocations = [...locationMap.values()];
+
     const checklistIds = [...new Set(birdMedia.map((item) => item.checklist_id).filter((id): id is string => Boolean(id)))];
     const relatedChecklists = checklistIds.map<RelatedChecklist>((id) => {
       const checklist = checklistsById.get(id);
@@ -204,6 +256,7 @@ export async function getBirdingSpecies(): Promise<Species[]> {
       photos,
       videos,
       audio,
+      observationLocations,
       relatedChecklists,
     };
   });
