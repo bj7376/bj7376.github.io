@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type SearchBird = {
-  code: string;
+  slug: string;
   commonName: string;
   koreanName: string;
   scientificName: string;
@@ -33,7 +33,7 @@ export function BirdSearch({ birds }: { birds: SearchBird[] }) {
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (results[0]) router.push(`/birding/species/${results[0].code}`);
+    if (results[0]) router.push(`/birding/species/${results[0].slug}`);
   }
 
   return (
@@ -54,8 +54,8 @@ export function BirdSearch({ birds }: { birds: SearchBird[] }) {
           <div className="bird-search-results" role="listbox">
             {results.length > 0 ? results.map((bird) => (
               <Link
-                key={bird.code}
-                href={`/birding/species/${bird.code}`}
+                key={bird.slug}
+                href={`/birding/species/${bird.slug}`}
                 role="option"
                 onClick={() => setOpen(false)}
               >
