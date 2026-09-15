@@ -22,6 +22,7 @@
 .species-list a:hover .bird-name{text-decoration:underline;text-decoration-color:var(--ink)}
 .species-list .bird-name{font-size:var(--t-meta);line-height:1.55}
 .species-list em{font-size:var(--t-meta);font-style:italic;color:var(--muted);line-height:1.55}
+.species-list a.observation-only,.species-list a.observation-only .bird-name,.species-list a.observation-only em{color:var(--muted)}
 
 .photo-taxonomy-archive{margin-top:40px}
 .photo-taxon-order{display:grid;grid-template-columns:var(--rail) 1fr;column-gap:var(--gap);padding:0 0 38px}
