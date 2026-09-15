@@ -6,14 +6,12 @@ const FUNCTION_URL = "https://ifqrvugxfmeclaqadqbd.supabase.co/functions/v1/admi
 const EBIRD_FUNCTION_URL = "https://ifqrvugxfmeclaqadqbd.supabase.co/functions/v1/admin-ebird-import";
 const OBSERVATIONS_FUNCTION_URL = "https://ifqrvugxfmeclaqadqbd.supabase.co/functions/v1/admin-ebird-observations";
 
-type UploadKind = "ml_photo" | "ml_video" | "ml_audio" | "ebird";
+type UploadKind = "ml" | "ebird";
 type UploadState = { last_success_at: string | null; metadata?: Record<string, unknown> } | null;
 type Uploads = Record<string, UploadState>;
 
 const rows: { kind: UploadKind; label: string; note: string }[] = [
-  { kind: "ml_photo", label: "Macaulay — Photo", note: "Photo CSV export" },
-  { kind: "ml_video", label: "Macaulay — Video", note: "Video CSV export" },
-  { kind: "ml_audio", label: "Macaulay — Audio", note: "Audio CSV export" },
+  { kind: "ml", label: "Macaulay Library — All media", note: "Combined CSV export (Photo, Video, Audio)" },
   { kind: "ebird", label: "eBird — Checklists", note: "My eBird Data CSV" },
 ];
 
@@ -71,6 +69,13 @@ export function AdminBirdingUploader() {
     });
   }
 
+  async function refreshUploads(key = adminKey) {
+    const response = await request(key);
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error || "Could not refresh upload status");
+    setUploads(body.uploads || {});
+  }
+
   async function unlock(key = adminKey, showError = true) {
     if (!key) return;
     setBusy("unlock");
@@ -114,10 +119,17 @@ export function AdminBirdingUploader() {
         if (typeof observationBody.observations === "number") observationCount = observationBody.observations;
       }
 
-      setUploads(body.uploads || {});
+      await refreshUploads(adminKey);
+
       const count = body.result?.rows;
+      const mediaBreakdown = kind === "ml"
+        && typeof body.result?.photos === "number"
+        && typeof body.result?.videos === "number"
+        && typeof body.result?.audio === "number"
+        ? ` · ${body.result.photos} photos · ${body.result.videos} videos · ${body.result.audio} audio`
+        : "";
       const observations = typeof observationCount === "number" ? ` · ${observationCount} observations` : "";
-      setMessage(`${file.name} uploaded${typeof count === "number" ? ` · ${count} rows` : ""}${observations}.`);
+      setMessage(`${file.name} uploaded${typeof count === "number" ? ` · ${count} rows` : ""}${mediaBreakdown}${observations}.`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error));
     } finally {
