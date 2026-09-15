@@ -4,6 +4,7 @@ import { BirdingLanguageToggle } from "@/components/BirdingLanguageToggle";
 import { BirdName } from "@/components/BirdName";
 import { SpeciesObservationMap } from "@/components/SpeciesObservationMap";
 import { getBirdingSpecies, getHeroPhoto, getSpecies, type BirdMedia } from "@/lib/birding";
+import { getSpeciesChecklists } from "@/lib/species-checklists";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -74,6 +75,7 @@ export default async function SpeciesPage({ params }: SpeciesPageProps) {
     ? `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${heroPhoto.id}/2400`
     : undefined;
   const photos = bird.photos.filter((photo) => photo.id !== heroPhoto?.id);
+  const relatedChecklists = await getSpeciesChecklists(bird.code, bird.relatedChecklists);
 
   return (
     <article className="species-page">
@@ -136,8 +138,14 @@ export default async function SpeciesPage({ params }: SpeciesPageProps) {
       <section className="species-section observation-section">
         <div className="minimal-section-heading"><h2>Related checklists</h2></div>
         <div className="observation-list related-checklist-list">
-          {bird.relatedChecklists.map((checklist) => (
-            <a href={checklist.url} target="_blank" rel="noreferrer" key={checklist.id}>
+          {relatedChecklists.map((checklist) => (
+            <a
+              className={checklist.hasPhoto ? undefined : "observation-only"}
+              href={checklist.url}
+              target="_blank"
+              rel="noreferrer"
+              key={checklist.id}
+            >
               <time>{displayDate(checklist.date)}</time>
               <strong>{checklist.place}</strong>
               <span>↗</span>
