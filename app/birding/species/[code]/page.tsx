@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { BirdingLanguageToggle } from "@/components/BirdingLanguageToggle";
 import { BirdName } from "@/components/BirdName";
 import { getBirdingSpecies, getHeroPhoto, getSpecies, type BirdMedia } from "@/lib/birding";
@@ -36,6 +36,7 @@ export default async function SpeciesPage({ params }: { params: Promise<{ code: 
   const birds = await getBirdingSpecies();
   const bird = getSpecies(birds, code);
   if (!bird) notFound();
+  if (code !== bird.slug) permanentRedirect(`/birding/species/${bird.slug}`);
 
   const heroPhoto = getHeroPhoto(bird);
   const heroPhotoSrc = heroPhoto
