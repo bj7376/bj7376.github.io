@@ -52,18 +52,23 @@ export function BirdSearch({ birds }: { birds: SearchBird[] }) {
         />
         {open && query.trim() && (
           <div className="bird-search-results" role="listbox">
-            {results.length > 0 ? results.map((bird) => (
-              <Link
-                key={bird.slug}
-                href={`/birding/species/${bird.slug}`}
-                role="option"
-                onClick={() => setOpen(false)}
-              >
-                <span className="bird-search-common">{bird.commonName}</span>
-                <span className="bird-search-korean ko-font" lang="ko">{bird.koreanName}</span>
-                <em>{bird.scientificName}</em>
-              </Link>
-            )) : <p className="bird-search-empty">No matching species</p>}
+            {results.length > 0 ? results.map((bird) => {
+              const hasDistinctKoreanName = Boolean(bird.koreanName && bird.koreanName !== bird.commonName);
+              return (
+                <Link
+                  key={bird.slug}
+                  href={`/birding/species/${bird.slug}`}
+                  role="option"
+                  onClick={() => setOpen(false)}
+                >
+                  <span className="bird-search-common">{bird.commonName}</span>
+                  {hasDistinctKoreanName && (
+                    <span className="bird-search-korean ko-font" lang="ko">{bird.koreanName}</span>
+                  )}
+                  <em>{bird.scientificName}</em>
+                </Link>
+              );
+            }) : <p className="bird-search-empty">No matching species</p>}
           </div>
         )}
       </div>
