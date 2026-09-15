@@ -24,7 +24,8 @@ export function RecentPhotoStrip({ photos, limit = 10 }: { photos: RankedPhoto[]
 }
 
 export function TaxonomicPhotoArchive({ birds }: { birds: Species[] }) {
-  const groups = groupedSpecies(birds);
+  const photoBirds = birds.filter((bird) => Boolean(getHeroPhoto(bird)));
+  const groups = groupedSpecies(photoBirds);
 
   return (
     <div className="photo-taxonomy-archive">
