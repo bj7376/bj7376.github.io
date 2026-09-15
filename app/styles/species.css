@@ -20,6 +20,11 @@
 .species-photo > a{display:block;color:var(--ink)}
 .species-photo figcaption{display:block;margin-top:7px;font-size:var(--t-meta);color:var(--muted);line-height:1.45}
 .species-photo > a:hover figcaption{text-decoration:underline;text-underline-offset:3px}
+.species-map-section{padding-top:44px;padding-bottom:44px}
+.species-observation-map{position:relative;width:100%;aspect-ratio:16/8;min-height:260px;overflow:hidden;background:#ececec;border:1px solid var(--rule);pointer-events:none;isolation:isolate}
+.species-map-tile{position:absolute;width:256px;height:256px;max-width:none;user-select:none;filter:grayscale(1) contrast(.88) brightness(1.08);z-index:1}
+.species-map-dot{position:absolute;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;border-radius:50%;background:#000;z-index:3}
+.species-map-attribution{position:absolute;right:5px;bottom:3px;z-index:4;padding:1px 3px;background:rgba(255,255,255,.78);font-size:8px;line-height:1.25;color:#666}
 .observation-list{border-top:1px solid var(--rule)}
 .observation-list > div,.observation-list > a{display:grid;grid-template-columns:120px 1fr 44px 24px;gap:16px;padding:7px 0;border-bottom:1px solid var(--rule);font-size:var(--t-meta);line-height:1.55;color:var(--ink)}
 .observation-list strong{font-weight:400}
