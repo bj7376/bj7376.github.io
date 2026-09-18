@@ -74,7 +74,6 @@ export default async function BirdingPage() {
       order,
       labelEn: labels.en,
       labelKo: labels.ko,
-      count: Object.values(families).reduce((total, familyBirds) => total + familyBirds.length, 0),
     };
   });
 
