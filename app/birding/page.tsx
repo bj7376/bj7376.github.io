@@ -2,9 +2,8 @@ import Link from "next/link";
 import { BirdingLanguageToggle } from "@/components/BirdingLanguageToggle";
 import { BirdName } from "@/components/BirdName";
 import { BirdSearch } from "@/components/BirdSearch";
-import { BirdOrderIndex } from "@/components/BirdOrderIndex";
 import { RecentPhotoStrip } from "@/components/PhotoArchive";
-import { getBirdingSpecies, getRecentPhotos, groupedSpecies } from "@/lib/birding";
+import { getBirdingSpecies, getRecentPhotos, groupedSpecies, type Species } from "@/lib/birding";
 import { getBirdingLastUpdated } from "@/lib/birding-status";
 
 export const metadata = { title: "Birding" };
@@ -20,29 +19,23 @@ function displayUpdatedDate(value: string) {
   }).format(new Date(value));
 }
 
-const ORDER_KOREAN_LABELS: Record<string, string> = {
-  Anseriformes: "오리·기러기류",
-  Galliformes: "닭·꿩류",
-  Columbiformes: "비둘기류",
-  Cuculiformes: "두견이·뻐꾸기류",
-  Apodiformes: "칼새류",
-  Gruiformes: "두루미·뜸부기류",
-  Charadriiformes: "도요·물떼새류",
-  Podicipediformes: "논병아리류",
-  Ciconiiformes: "황새류",
-  Suliformes: "가마우지류",
-  Pelecaniformes: "백로·왜가리류",
-  Accipitriformes: "수리류",
-  Strigiformes: "올빼미류",
-  Bucerotiformes: "후투티류",
-  Coraciiformes: "물총새·파랑새류",
-  Piciformes: "딱따구리류",
-  Falconiformes: "매류",
-  Passeriformes: "참새류",
-};
-
 function orderAnchorId(order: string) {
   return `order-${order.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+}
+
+function groupByGenus(birds: Species[]) {
+  return birds.reduce<Array<{ genus: string; birds: Species[] }>>((groups, bird) => {
+    const genus = bird.scientificName.trim().split(/\s+/)[0] || "Other";
+    const previous = groups[groups.length - 1];
+
+    if (previous?.genus === genus) {
+      previous.birds.push(bird);
+    } else {
+      groups.push({ genus, birds: [bird] });
+    }
+
+    return groups;
+  }, []);
 }
 
 export default async function BirdingPage() {
@@ -51,12 +44,6 @@ export default async function BirdingPage() {
     getBirdingLastUpdated(),
   ]);
   const groups = groupedSpecies(birds);
-  const orderIndex = Object.entries(groups).map(([order, families]) => ({
-    id: orderAnchorId(order),
-    order,
-    label: ORDER_KOREAN_LABELS[order] || order,
-    count: Object.values(families).reduce((total, familyBirds) => total + familyBirds.length, 0),
-  }));
   const recentPhotos = getRecentPhotos(birds);
   const searchBirds = birds.map(({ slug, commonName, koreanName, scientificName }) => ({ slug, commonName, koreanName, scientificName }));
 
@@ -75,42 +62,49 @@ export default async function BirdingPage() {
       <section className="field-guide minimal-field-guide">
         <div className="field-guide-title"><h2>My own bird guide</h2></div>
         <div className="field-guide-body">
-          <BirdOrderIndex orders={orderIndex} />
           <div className="field-guide-index">
-          {Object.entries(groups).map(([order, families]) => (
-            <section className="taxon-order" id={orderAnchorId(order)} data-bird-order key={order}>
-              <div className="order-index"><h3>{order}</h3></div>
-              <div className="family-list">
-                {Object.entries(families).map(([family, familyBirds]) => (
-                  <div className="family-row" key={family}>
-                    <div className="family-name">
-                      <span>{familyBirds[0]?.family}</span>
-                      <strong>{family}</strong>
-                    </div>
-                    <div className="species-list">
-                      {familyBirds.map((bird) => {
-                        const observationOnly = bird.photos.length === 0
-                          && bird.videos.length === 0
-                          && bird.audio.length === 0
-                          && bird.observationLocations.length > 0;
+            {Object.entries(groups).map(([order, families]) => (
+              <section className="taxon-order" id={orderAnchorId(order)} data-bird-order key={order}>
+                <div className="order-index"><h3>{order}</h3></div>
+                <div className="family-list">
+                  {Object.entries(families).map(([family, familyBirds]) => (
+                    <section className="family-row" key={family}>
+                      <div className="family-name">
+                        <span>{familyBirds[0]?.family}</span>
+                        <strong>{family}</strong>
+                      </div>
 
-                        return (
-                          <a
-                            href={`/birding/species/${bird.slug}`}
-                            className={observationOnly ? "observation-only" : undefined}
-                            key={bird.code}
-                          >
-                            <BirdName bird={bird} />
-                            <em>{bird.scientificName}</em>
-                          </a>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          ))}
+                      <div className="species-list">
+                        {groupByGenus(familyBirds).map(({ genus, birds: genusBirds }) => (
+                          <div className="genus-group" key={genus}>
+                            <h4 className="genus-heading">{genus}</h4>
+                            <div className="genus-species-list">
+                              {genusBirds.map((bird) => {
+                                const observationOnly = bird.photos.length === 0
+                                  && bird.videos.length === 0
+                                  && bird.audio.length === 0
+                                  && bird.observationLocations.length > 0;
+
+                                return (
+                                  <a
+                                    href={`/birding/species/${bird.slug}`}
+                                    className={observationOnly ? "observation-only" : undefined}
+                                    key={bird.code}
+                                  >
+                                    <BirdName bird={bird} />
+                                    <em>{bird.scientificName}</em>
+                                  </a>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              </section>
+            ))}
           </div>
         </div>
       </section>
