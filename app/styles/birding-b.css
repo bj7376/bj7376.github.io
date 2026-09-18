@@ -32,3 +32,45 @@
 .photo-family-name span{display:block;font-size:var(--t-meta);font-style:italic;color:var(--muted);line-height:1.45}
 .photo-family-name strong{display:block;margin-top:1px;font-size:var(--t-meta);font-weight:400;color:var(--ink);line-height:1.45}
 .photo-index-grid-taxonomic{grid-template-columns:repeat(4,minmax(0,1fr));gap:24px 14px}
+
+
+/* Sticky bird-order index */
+.field-guide-body{
+  display:grid;
+  grid-template-columns:var(--rail) minmax(0,1fr);
+  column-gap:var(--gap);
+  align-items:start;
+}
+.bird-order-index-sentinel{width:1px;height:1px;grid-column:1;grid-row:1}
+.bird-order-index{
+  grid-column:1;
+  grid-row:1;
+  position:sticky;
+  top:76px;
+  max-height:calc(100vh - 96px);
+  overflow:auto;
+  padding:0 12px 0 0;
+  scrollbar-width:none;
+}
+.bird-order-index::-webkit-scrollbar{display:none}
+.bird-order-index a{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:8px;
+  align-items:baseline;
+  padding:3px 0;
+  color:var(--muted);
+  font-size:var(--t-micro);
+  line-height:1.45;
+  text-decoration:none;
+}
+.bird-order-index a:hover,.bird-order-index a.active{color:var(--ink);text-decoration:none}
+.bird-order-index a.active span{text-decoration:underline;text-underline-offset:3px}
+.bird-order-index small{font:inherit;color:inherit}
+.field-guide-body .field-guide-index{grid-column:2;min-width:0}
+.field-guide-body .taxon-order{
+  display:block;
+  scroll-margin-top:78px;
+  padding:0 0 30px;
+}
+.field-guide-body .order-index h3{margin:0 0 10px}
