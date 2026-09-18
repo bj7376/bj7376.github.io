@@ -6,19 +6,62 @@
 .photographs-full-section .minimal-section-heading h1{margin:0;font-size:var(--t-body);font-weight:400;line-height:1.45}
 .back-link{display:inline-block;margin-top:34px;font-size:var(--t-meta);color:var(--muted);text-decoration:underline;text-underline-offset:3px}
 .back-link:hover{color:var(--ink)}
+
 .field-guide.minimal-field-guide{padding:44px 0 0;border-top:1px solid var(--rule);border-bottom:0}
 .field-guide-title{display:grid;grid-template-columns:var(--rail) 1fr;column-gap:var(--gap);margin:0 0 30px}
 .field-guide-title h2{grid-column:1;margin:0;font-size:var(--t-body);font-weight:400;line-height:1.45;color:var(--muted);letter-spacing:0}
+.field-guide-body{display:block}
 .field-guide-index{border-top:0}
-.taxon-order{display:grid;grid-template-columns:var(--rail) 1fr;column-gap:var(--gap);padding:0 0 26px;border:0}
-.order-index{display:block}
-.taxon-order h3{margin:0;font-size:var(--t-meta);font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;line-height:1.45}
-.family-row{display:grid;grid-template-columns:170px 1fr;gap:20px;padding:0 0 18px}
+
+.taxon-order{
+  padding:28px 0 38px;
+  border-top:1px solid var(--rule);
+  scroll-margin-top:76px;
+}
+.order-index h3{
+  margin:0 0 18px;
+  font-size:var(--t-body);
+  font-weight:400;
+  color:var(--ink);
+  text-transform:uppercase;
+  letter-spacing:.035em;
+  line-height:1.45;
+}
+.family-row{
+  display:grid;
+  grid-template-columns:var(--rail) minmax(0,1fr);
+  column-gap:var(--gap);
+  align-items:start;
+  padding:0 0 28px;
+}
 .family-row:last-child{padding-bottom:0}
+.family-name{
+  position:sticky;
+  top:76px;
+  align-self:start;
+  padding:2px 0;
+}
 .family-name span{display:block;font-size:var(--t-meta);font-style:italic;color:var(--muted);line-height:1.45}
 .family-name strong{display:block;margin-top:1px;font-size:var(--t-meta);font-weight:400;color:var(--ink);line-height:1.45}
-.species-list a{display:grid;grid-template-columns:minmax(150px,1fr) minmax(150px,1fr);gap:16px;padding:5px 0;border-bottom:1px solid var(--rule);color:var(--ink)}
-.species-list a:first-child{border-top:1px solid var(--rule)}
+
+.genus-group + .genus-group{margin-top:12px}
+.genus-heading{
+  margin:0 0 3px;
+  font-size:var(--t-micro);
+  font-weight:400;
+  font-style:italic;
+  color:var(--muted);
+  line-height:1.45;
+}
+.species-list a{
+  display:grid;
+  grid-template-columns:minmax(150px,1fr) minmax(150px,1fr);
+  gap:16px;
+  padding:5px 0;
+  border-bottom:1px solid var(--rule);
+  color:var(--ink);
+}
+.genus-species-list a:first-child{border-top:1px solid var(--rule)}
 .species-list a:hover .bird-name{text-decoration:underline;text-decoration-color:var(--ink)}
 .species-list .bird-name{font-size:var(--t-meta);line-height:1.55}
 .species-list em{font-size:var(--t-meta);font-style:italic;color:var(--muted);line-height:1.55}
@@ -32,45 +75,3 @@
 .photo-family-name span{display:block;font-size:var(--t-meta);font-style:italic;color:var(--muted);line-height:1.45}
 .photo-family-name strong{display:block;margin-top:1px;font-size:var(--t-meta);font-weight:400;color:var(--ink);line-height:1.45}
 .photo-index-grid-taxonomic{grid-template-columns:repeat(4,minmax(0,1fr));gap:24px 14px}
-
-
-/* Sticky bird-order index */
-.field-guide-body{
-  display:grid;
-  grid-template-columns:var(--rail) minmax(0,1fr);
-  column-gap:var(--gap);
-  align-items:start;
-}
-.bird-order-index-sentinel{width:1px;height:1px;grid-column:1;grid-row:1}
-.bird-order-index{
-  grid-column:1;
-  grid-row:1;
-  position:sticky;
-  top:76px;
-  max-height:calc(100vh - 96px);
-  overflow:auto;
-  padding:0 12px 0 0;
-  scrollbar-width:none;
-}
-.bird-order-index::-webkit-scrollbar{display:none}
-.bird-order-index a{
-  display:grid;
-  grid-template-columns:minmax(0,1fr) auto;
-  gap:8px;
-  align-items:baseline;
-  padding:3px 0;
-  color:var(--muted);
-  font-size:var(--t-micro);
-  line-height:1.45;
-  text-decoration:none;
-}
-.bird-order-index a:hover,.bird-order-index a.active{color:var(--ink);text-decoration:none}
-.bird-order-index a.active span{text-decoration:underline;text-underline-offset:3px}
-.bird-order-index small{font:inherit;color:inherit}
-.field-guide-body .field-guide-index{grid-column:2;min-width:0}
-.field-guide-body .taxon-order{
-  display:block;
-  scroll-margin-top:78px;
-  padding:0 0 30px;
-}
-.field-guide-body .order-index h3{margin:0 0 10px}
