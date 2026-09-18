@@ -7,7 +7,6 @@ export type BirdOrderIndexItem = {
   order: string;
   labelEn: string;
   labelKo: string;
-  count: number;
 };
 
 export function BirdOrderIndex({ orders }: { orders: BirdOrderIndexItem[] }) {
@@ -79,7 +78,7 @@ export function BirdOrderIndex({ orders }: { orders: BirdOrderIndexItem[] }) {
             data-order-id={item.id}
             className={active ? "active" : undefined}
             aria-current={active ? "location" : undefined}
-            aria-label={`${item.labelEn} / ${item.labelKo}, ${item.count} species (${item.order})`}
+            aria-label={`${item.labelEn} / ${item.labelKo} (${item.order})`}
             title={item.order}
             key={item.id}
             onClick={() => setActiveId(item.id)}
@@ -88,7 +87,6 @@ export function BirdOrderIndex({ orders }: { orders: BirdOrderIndexItem[] }) {
               <span className="bird-order-label-en">{item.labelEn}</span>
               <span className="bird-order-label-ko ko-font" lang="ko">{item.labelKo}</span>
             </span>
-            <small>{item.count}</small>
           </a>
         );
       })}
