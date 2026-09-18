@@ -97,3 +97,25 @@ html[data-bird-language="ko"] .bird-name-ko{display:inline}
 .photo-index-caption{display:block;margin-top:7px;font-size:var(--t-meta);line-height:1.45}
 .photo-index-item:hover .photo-index-caption{text-decoration:underline;text-decoration-color:var(--ink)}
 .photo-index-caption time{display:block;font-size:var(--t-micro);color:var(--muted);text-decoration:none}
+
+
+.birding-scroll-button{
+  position:fixed;
+  right:max(var(--edge),calc((100vw - var(--page))/2));
+  bottom:24px;
+  z-index:18;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:30px;
+  height:30px;
+  padding:0;
+  border:1px solid var(--rule);
+  border-radius:0;
+  background:rgba(255,255,255,.96);
+  color:var(--ink);
+  font-size:16px;
+  line-height:1;
+  cursor:pointer;
+}
+.birding-scroll-button:hover{border-color:var(--ink);background:#fff}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BirdName } from "@/components/BirdName";
 import { BirdOrderIndex } from "@/components/BirdOrderIndex";
+import { BirdingScrollButton } from "@/components/BirdingScrollButton";
 import { BirdingToolbar } from "@/components/BirdingToolbar";
 import { RecentPhotoStrip } from "@/components/PhotoArchive";
 import { getBirdingSpecies, getRecentPhotos, groupedSpecies, type Species } from "@/lib/birding";
@@ -146,6 +147,8 @@ export default async function BirdingPage() {
           <span className="birding-update-note">This page was last updated on {displayUpdatedDate(lastUpdated)}.</span>
         </div>
       )}
+
+      <BirdingScrollButton />
     </section>
   );
 }
