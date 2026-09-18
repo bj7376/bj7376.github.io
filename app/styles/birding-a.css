@@ -1,7 +1,40 @@
 /* =========================================================================
    Birding — photograph archive + taxonomic index
    ========================================================================= */
-.birding-page,.species-page{max-width:none;margin:0;padding:64px 0 0}
+.birding-page,.species-page{
+  max-width:none;margin:0;padding:64px 0 0;
+  --birding-site-header-height:58px;
+  --birding-toolbar-height:78px;
+  --birding-order-index-height:43px;
+}
+
+.birding-toolbar{
+  position:sticky;
+  top:var(--birding-site-header-height);
+  z-index:19;
+  display:grid;
+  grid-template-columns:var(--rail) minmax(0,1fr);
+  grid-template-rows:auto auto;
+  column-gap:var(--gap);
+  row-gap:8px;
+  align-items:center;
+  min-height:var(--birding-toolbar-height);
+  margin:0 0 44px;
+  padding:10px 0 11px;
+  background:rgba(255,255,255,.98);
+  border-bottom:1px solid var(--rule);
+}
+.birding-toolbar-language-label,.birding-toolbar-search-label{
+  grid-column:1;
+  font-size:var(--t-meta);
+  line-height:1.45;
+  color:var(--muted);
+}
+.birding-toolbar-language-label{grid-row:1}
+.birding-toolbar-search-label{grid-row:2}
+.birding-toolbar .bird-language-toggle{grid-column:2;grid-row:1;justify-self:end}
+.birding-toolbar .bird-search{grid-column:2;grid-row:2;min-width:0}
+.species-page .birding-toolbar{margin-bottom:32px}
 
 .birding-minimal-header{
   display:grid;grid-template-columns:var(--rail) 1fr;column-gap:var(--gap);
@@ -23,13 +56,13 @@
 .bird-search{width:100%;position:relative}
 .bird-search-input-wrap{position:relative}
 .bird-search input[type="search"]{
-  width:100%;padding:8px 0;border:0;border-bottom:1px solid var(--ink);border-radius:0;
+  width:100%;padding:5px 0;border:0;border-bottom:1px solid var(--ink);border-radius:0;
   background:transparent;color:var(--ink);font:inherit;font-size:var(--t-body);outline:none;
   -webkit-appearance:none;appearance:none;
 }
 .bird-search input[type="search"]::placeholder{color:var(--muted)}
 .bird-search-results{
-  position:absolute;z-index:12;left:0;right:0;top:100%;background:#fff;
+  position:absolute;z-index:22;left:0;right:0;top:100%;background:#fff;
   border-bottom:1px solid var(--ink);box-shadow:0 8px 18px rgba(0,0,0,.06);
 }
 .bird-search-results a{
