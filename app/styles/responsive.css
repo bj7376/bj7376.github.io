@@ -66,6 +66,12 @@
     padding:8px var(--edge);
     overflow-x:auto;
     overflow-y:hidden;
+    overscroll-behavior-x:contain;
+    touch-action:pan-x;
+    -webkit-overflow-scrolling:touch;
+    transform:translateZ(0);
+    backface-visibility:hidden;
+    will-change:transform;
     background:rgba(255,255,255,.97);
     border-top:1px solid var(--rule);
     border-bottom:1px solid var(--rule);

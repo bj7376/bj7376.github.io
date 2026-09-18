@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export type BirdOrderIndexItem = {
   id: string;
@@ -11,6 +11,7 @@ export type BirdOrderIndexItem = {
 
 export function BirdOrderIndex({ orders }: { orders: BirdOrderIndexItem[] }) {
   const [activeId, setActiveId] = useState(orders[0]?.id || "");
+  const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const markers = orders
@@ -54,15 +55,46 @@ export function BirdOrderIndex({ orders }: { orders: BirdOrderIndexItem[] }) {
     };
   }, [orders]);
 
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav || !activeId) return;
+
+    const active = nav.querySelector<HTMLElement>(`[data-order-id="${activeId}"]`);
+    if (!active) return;
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const mobile = window.matchMedia("(max-width: 820px)").matches;
+    const behavior: ScrollBehavior = reduceMotion ? "auto" : "smooth";
+
+    if (mobile) {
+      const target = active.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2;
+      const max = Math.max(0, nav.scrollWidth - nav.clientWidth);
+      nav.scrollTo({ left: Math.max(0, Math.min(target, max)), behavior });
+      return;
+    }
+
+    const top = active.offsetTop;
+    const bottom = top + active.offsetHeight;
+    const visibleTop = nav.scrollTop + 8;
+    const visibleBottom = nav.scrollTop + nav.clientHeight - 8;
+
+    if (top < visibleTop) {
+      nav.scrollTo({ top: Math.max(0, top - 8), behavior });
+    } else if (bottom > visibleBottom) {
+      nav.scrollTo({ top: bottom - nav.clientHeight + 8, behavior });
+    }
+  }, [activeId]);
+
   return (
     <>
       <div id="bird-order-index-sentinel" className="bird-order-index-sentinel" aria-hidden="true" />
-      <nav className="bird-order-index" aria-label="Bird order index">
+      <nav ref={navRef} className="bird-order-index" aria-label="Bird order index">
         {orders.map((item) => {
           const active = activeId === item.id;
           return (
             <a
               href={`#${item.id}`}
+              data-order-id={item.id}
               className={active ? "active" : undefined}
               aria-current={active ? "location" : undefined}
               aria-label={`${item.label}, ${item.count} species (${item.order})`}
