@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from "react";
 export type BirdOrderIndexItem = {
   id: string;
   order: string;
-  label: string;
+  labelEn: string;
+  labelKo: string;
   count: number;
 };
 
@@ -28,31 +29,14 @@ export function BirdOrderIndex({ orders }: { orders: BirdOrderIndexItem[] }) {
       },
       {
         root: null,
-        rootMargin: "-64px 0px -80% 0px",
+        rootMargin: "-150px 0px -72% 0px",
         threshold: 0,
       },
     );
 
     markers.forEach((marker) => sectionObserver.observe(marker));
 
-    const sentinel = document.getElementById("bird-order-index-sentinel");
-    const stickyObserver = sentinel
-      ? new IntersectionObserver(
-          ([entry]) => {
-            const stuck = !entry.isIntersecting && entry.boundingClientRect.top < 0;
-            document.documentElement.classList.toggle("birding-order-index-stuck", stuck);
-          },
-          { threshold: 0 },
-        )
-      : null;
-
-    if (sentinel && stickyObserver) stickyObserver.observe(sentinel);
-
-    return () => {
-      sectionObserver.disconnect();
-      stickyObserver?.disconnect();
-      document.documentElement.classList.remove("birding-order-index-stuck");
-    };
+    return () => sectionObserver.disconnect();
   }, [orders]);
 
   useEffect(() => {
@@ -86,28 +70,28 @@ export function BirdOrderIndex({ orders }: { orders: BirdOrderIndexItem[] }) {
   }, [activeId]);
 
   return (
-    <>
-      <div id="bird-order-index-sentinel" className="bird-order-index-sentinel" aria-hidden="true" />
-      <nav ref={navRef} className="bird-order-index" aria-label="Bird order index">
-        {orders.map((item) => {
-          const active = activeId === item.id;
-          return (
-            <a
-              href={`#${item.id}`}
-              data-order-id={item.id}
-              className={active ? "active" : undefined}
-              aria-current={active ? "location" : undefined}
-              aria-label={`${item.label}, ${item.count} species (${item.order})`}
-              title={item.order}
-              key={item.id}
-              onClick={() => setActiveId(item.id)}
-            >
-              <span>{item.label}</span>
-              <small>{item.count}</small>
-            </a>
-          );
-        })}
-      </nav>
-    </>
+    <nav ref={navRef} className="bird-order-index" aria-label="Bird order index">
+      {orders.map((item) => {
+        const active = activeId === item.id;
+        return (
+          <a
+            href={`#${item.id}`}
+            data-order-id={item.id}
+            className={active ? "active" : undefined}
+            aria-current={active ? "location" : undefined}
+            aria-label={`${item.labelEn} / ${item.labelKo}, ${item.count} species (${item.order})`}
+            title={item.order}
+            key={item.id}
+            onClick={() => setActiveId(item.id)}
+          >
+            <span className="bird-order-label">
+              <span className="bird-order-label-en">{item.labelEn}</span>
+              <span className="bird-order-label-ko ko-font" lang="ko">{item.labelKo}</span>
+            </span>
+            <small>{item.count}</small>
+          </a>
+        );
+      })}
+    </nav>
   );
 }
