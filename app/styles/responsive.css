@@ -4,8 +4,9 @@
   .photo-index-grid-rated,.photo-index-grid-recent{grid-template-columns:repeat(4,minmax(0,1fr))}
   .photo-index-grid-taxonomic{grid-template-columns:repeat(3,minmax(0,1fr))}
   .species-photo-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .family-row,.photo-family-row{grid-template-columns:140px 1fr;gap:16px}
+  .photo-family-row{grid-template-columns:140px 1fr;gap:16px}
 }
+
 @media(max-width:820px){
   :root{--edge:22px}
   .bio-section,.birding-section,.species-section,.birding-minimal-header,.all-photographs-link-row,.species-language-row,.species-header.minimal-species-header,.species-hero-image,.taxon-order,.photo-taxon-order,.field-guide-title,.admin-header,.admin-lock,.admin-uploader,.original-project-page,.trips-header,.site-footer{display:block}
@@ -20,7 +21,6 @@
   .site-header{height:52px}
   .site-header nav{gap:16px}
   .site-footer{display:flex;flex-direction:column;gap:4px;margin-top:72px}
-  .taxon-order h3,.photo-order-index h2{margin:0 0 10px}
   .work-page,.birding-page,.species-page,.admin-page,.original-project-page,.article-page,.trips-page,.index-page{padding-top:36px}
   .original-project-title{margin-bottom:28px}
   .project-feature-line{margin:0 0 14px}
@@ -31,14 +31,38 @@
   .field-guide.minimal-field-guide{padding-top:36px}
   .admin-header h1{margin-bottom:14px}
   .admin-lock > form,.admin-uploader > *{display:block}
+
+  .field-guide-body{display:block}
+  .taxon-order{
+    padding:24px 0 34px;
+    scroll-margin-top:64px;
+  }
+  .order-index h3{margin:0 0 16px}
+  .family-row{
+    display:block;
+    padding:0 0 26px;
+  }
+  .family-name{
+    position:sticky;
+    top:52px;
+    z-index:18;
+    margin:0 calc(var(--edge) * -1) 10px;
+    padding:8px var(--edge);
+    background:rgba(255,255,255,.97);
+    border-top:1px solid var(--rule);
+    border-bottom:1px solid var(--rule);
+    transform:translateZ(0);
+  }
+  .genus-group + .genus-group{margin-top:14px}
 }
+
 @media(max-width:600px){
   :root{--edge:18px}
   .project-grid.original-grid{grid-template-columns:1fr;gap:36px}
   .photo-index-grid-rated,.photo-index-grid-recent,.photo-index-grid-taxonomic,.species-photo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .family-row,.photo-family-row{grid-template-columns:1fr;gap:8px}
-  .species-list a{grid-template-columns:1fr 56px}
-  .species-list em{display:none}
+  .photo-family-row{grid-template-columns:1fr;gap:8px}
+  .species-list a{display:block;padding:7px 0}
+  .species-list em{display:block;margin-top:1px;font-size:var(--t-micro)}
   .bird-search-results a{grid-template-columns:1fr 1fr;gap:10px}
   .bird-search-results em{display:none}
   .observation-list > div,.observation-list > a{grid-template-columns:96px 1fr 24px;gap:10px}
@@ -49,46 +73,4 @@
   .upload-button{grid-column:2;grid-row:1 / span 2}
   .trip-full-row{grid-template-columns:44px 1fr auto}
   .trip-full-row p:nth-of-type(1),.trip-full-row p:nth-of-type(2){display:none}
-}
-
-@media(max-width:820px){
-  .field-guide-body{display:block}
-  .bird-order-index-sentinel{height:1px;width:100%}
-  .bird-order-index{
-    position:sticky;
-    top:52px;
-    z-index:19;
-    display:flex;
-    gap:6px;
-    width:auto;
-    max-height:none;
-    margin:0 calc(var(--edge) * -1) 24px;
-    padding:8px var(--edge);
-    overflow-x:auto;
-    overflow-y:hidden;
-    overscroll-behavior-x:contain;
-    touch-action:pan-x;
-    -webkit-overflow-scrolling:touch;
-    transform:translateZ(0);
-    backface-visibility:hidden;
-    will-change:transform;
-    background:rgba(255,255,255,.97);
-    border-top:1px solid var(--rule);
-    border-bottom:1px solid var(--rule);
-    scrollbar-width:none;
-  }
-  .bird-order-index a{
-    display:flex;
-    flex:0 0 auto;
-    align-items:baseline;
-    gap:5px;
-    padding:5px 9px;
-    border:1px solid var(--rule);
-    border-radius:999px;
-    white-space:nowrap;
-    font-size:var(--t-micro);
-  }
-  .bird-order-index a.active{border-color:var(--ink)}
-  .bird-order-index a.active span{text-decoration:none}
-  .field-guide-body .taxon-order{scroll-margin-top:108px}
 }
