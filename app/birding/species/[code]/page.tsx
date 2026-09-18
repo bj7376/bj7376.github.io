@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { BirdName } from "@/components/BirdName";
-import { BirdingToolbar } from "@/components/BirdingToolbar";
+import { BirdingLanguageToggle } from "@/components/BirdingLanguageToggle";
 import { SpeciesObservationMap } from "@/components/SpeciesObservationMap";
 import { getBirdingSpecies, getHeroPhoto, getSpecies, type BirdMedia } from "@/lib/birding";
 import { getSpeciesChecklists } from "@/lib/species-checklists";
@@ -70,7 +70,6 @@ export default async function SpeciesPage({ params }: SpeciesPageProps) {
   if (!bird) notFound();
   if (code !== bird.slug) permanentRedirect(`/birding/species/${bird.slug}`);
 
-  const searchBirds = birds.map(({ slug, commonName, koreanName, scientificName }) => ({ slug, commonName, koreanName, scientificName }));
   const heroPhoto = getHeroPhoto(bird);
   const heroPhotoSrc = heroPhoto
     ? `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${heroPhoto.id}/2400`
@@ -80,7 +79,10 @@ export default async function SpeciesPage({ params }: SpeciesPageProps) {
 
   return (
     <article className="species-page">
-      <BirdingToolbar birds={searchBirds} />
+      <div className="species-language-row">
+        <span className="bird-language-label">Bird names</span>
+        <BirdingLanguageToggle />
+      </div>
 
       <header className="species-header minimal-species-header">
         <div>
