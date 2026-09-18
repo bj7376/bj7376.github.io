@@ -9,6 +9,11 @@
 
 @media(max-width:820px){
   :root{--edge:22px}
+  .birding-page,.species-page{
+    --birding-site-header-height:52px;
+    --birding-toolbar-height:45px;
+    --birding-order-index-height:43px;
+  }
   .bio-section,.birding-section,.species-section,.birding-minimal-header,.all-photographs-link-row,.species-language-row,.species-header.minimal-species-header,.species-hero-image,.taxon-order,.photo-taxon-order,.field-guide-title,.admin-header,.admin-lock,.admin-uploader,.original-project-page,.trips-header,.site-footer{display:block}
   .all-photographs-link-row a{display:inline-block}
   .bio-section > h1,.bio-section > h2,.birding-section > .minimal-section-heading,.species-section > .minimal-section-heading{margin:0 0 14px}
@@ -32,10 +37,60 @@
   .admin-header h1{margin-bottom:14px}
   .admin-lock > form,.admin-uploader > *{display:block}
 
+  .birding-toolbar{
+    grid-template-columns:minmax(0,1fr) auto;
+    grid-template-rows:1fr;
+    column-gap:12px;
+    row-gap:0;
+    min-height:var(--birding-toolbar-height);
+    margin-bottom:30px;
+    padding:7px 0;
+  }
+  .birding-toolbar-language-label,.birding-toolbar-search-label{display:none}
+  .birding-toolbar .bird-search{grid-column:1;grid-row:1}
+  .birding-toolbar .bird-language-toggle{grid-column:2;grid-row:1;align-self:center}
+  .species-page .birding-toolbar{margin-bottom:24px}
+
   .field-guide-body{display:block}
-  .taxon-order{
+  .bird-order-index{
+    position:sticky;
+    top:calc(var(--birding-site-header-height) + var(--birding-toolbar-height));
+    z-index:18;
+    display:flex;
+    gap:6px;
+    width:auto;
+    min-height:var(--birding-order-index-height);
+    max-height:none;
+    margin:0 calc(var(--edge) * -1) 24px;
+    padding:8px var(--edge);
+    overflow-x:auto;
+    overflow-y:hidden;
+    overscroll-behavior-x:contain;
+    touch-action:pan-x;
+    -webkit-overflow-scrolling:touch;
+    background:rgba(255,255,255,.98);
+    border-top:1px solid var(--rule);
+    border-bottom:1px solid var(--rule);
+    scrollbar-width:none;
+  }
+  .bird-order-index a{
+    display:flex;
+    flex:0 0 auto;
+    align-items:baseline;
+    gap:5px;
+    padding:5px 9px;
+    border:1px solid var(--rule);
+    border-radius:999px;
+    white-space:nowrap;
+    font-size:var(--t-micro);
+  }
+  .bird-order-index a.active{border-color:var(--ink)}
+  .bird-order-index a.active .bird-order-label{text-decoration:none}
+  .field-guide-index{display:block}
+  .field-guide-body .taxon-order{
+    display:block;
+    scroll-margin-top:calc(var(--birding-site-header-height) + var(--birding-toolbar-height) + var(--birding-order-index-height) + 8px);
     padding:24px 0 34px;
-    scroll-margin-top:64px;
   }
   .order-index h3{margin:0 0 16px}
   .family-row{
@@ -44,8 +99,8 @@
   }
   .family-name{
     position:sticky;
-    top:52px;
-    z-index:18;
+    top:calc(var(--birding-site-header-height) + var(--birding-toolbar-height) + var(--birding-order-index-height));
+    z-index:17;
     margin:0 calc(var(--edge) * -1) 10px;
     padding:8px var(--edge);
     background:rgba(255,255,255,.97);
