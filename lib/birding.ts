@@ -203,13 +203,19 @@ function mediaFromRow(item: DbMedia, commonName: string): BirdMedia {
 }
 
 async function getIndexRow(code: string): Promise<DbBirdingIndex | null> {
-  const rows = await fetchRows<DbBirdingIndex>("public_birding_species_index", {
+  const canonicalRows = await fetchRows<DbBirdingIndex>("public_birding_species_index", {
     select: INDEX_SELECT,
-    or: `(species_code.eq.${code},ebird_species_code.eq.${code})`,
+    ebird_species_code: `eq.${code}`,
     limit: "1",
   });
+  if (canonicalRows[0]) return canonicalRows[0];
 
-  return rows[0] ?? null;
+  const legacyRows = await fetchRows<DbBirdingIndex>("public_birding_species_index", {
+    select: INDEX_SELECT,
+    species_code: `eq.${code}`,
+    limit: "1",
+  });
+  return legacyRows[0] ?? null;
 }
 
 export const getBirdingSpecies = cache(async (): Promise<Species[]> => {
