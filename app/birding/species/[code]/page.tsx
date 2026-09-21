@@ -3,7 +3,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { BirdName } from "@/components/BirdName";
 import { BirdingLanguageToggle } from "@/components/BirdingLanguageToggle";
 import { SpeciesObservationMap } from "@/components/SpeciesObservationMap";
-import { getBirdingSpecies, getHeroPhoto, getSpecies, type BirdMedia } from "@/lib/birding";
+import { getBirdingSpeciesDetail, getHeroPhoto, type BirdMedia } from "@/lib/birding";
 import { getSpeciesChecklists } from "@/lib/species-checklists";
 
 export const dynamic = "force-dynamic";
@@ -23,8 +23,7 @@ function displayDate(date: string) {
 
 export async function generateMetadata({ params }: SpeciesPageProps): Promise<Metadata> {
   const { code } = await params;
-  const birds = await getBirdingSpecies();
-  const bird = getSpecies(birds, code);
+  const bird = await getBirdingSpeciesDetail(code);
 
   if (!bird) return { title: "Birding" };
 
@@ -65,8 +64,7 @@ function MediaRows({ items }: { items: BirdMedia[] }) {
 
 export default async function SpeciesPage({ params }: SpeciesPageProps) {
   const { code } = await params;
-  const birds = await getBirdingSpecies();
-  const bird = getSpecies(birds, code);
+  const bird = await getBirdingSpeciesDetail(code);
   if (!bird) notFound();
   if (code !== bird.slug) permanentRedirect(`/birding/species/${bird.slug}`);
 

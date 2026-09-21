@@ -104,10 +104,7 @@ export default async function BirdingPage() {
                             <h4 className="genus-heading">{genus}</h4>
                             <div className="genus-species-list">
                               {genusBirds.map((bird) => {
-                                const observationOnly = bird.photos.length === 0
-                                  && bird.videos.length === 0
-                                  && bird.audio.length === 0
-                                  && bird.observationLocations.length > 0;
+                                const observationOnly = !bird.hasMedia && bird.hasObservation;
 
                                 return (
                                   <a

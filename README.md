@@ -90,12 +90,13 @@ Important database resources used by the frontend include:
 - `media`
 - `checklists`
 - `locations`
+- `public_birding_species_index` — one-row-per-species public index used by the guide and photograph archive
 - `public_species_locations`
 - `birding_update_status`
 
 Private bookkeeping and admin authentication data should remain inaccessible to the public anon role.
 
-The species pages separate media explicitly into photo, video, and audio. Photo-only logic must be preserved when choosing representative images.
+The guide and photograph archive use `public_birding_species_index` so they do not download the full media/checklist/location tables on every request. Species detail pages query only the selected species. The species pages separate media explicitly into photo, video, and audio. Photo-only logic must be preserved when choosing representative images.
 
 ## Updating birding data
 

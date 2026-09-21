@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 export type BirdMedia = {
   id: string;
   label: string;
@@ -43,11 +45,13 @@ export type Species = {
   audio: BirdMedia[];
   observationLocations: ObservationLocation[];
   relatedChecklists: RelatedChecklist[];
+  hasMedia?: boolean;
+  hasObservation?: boolean;
 };
 
 export type RankedPhoto = { bird: Species; photo: BirdPhoto };
 
-type DbTaxon = {
+type DbBirdingIndex = {
   species_code: string;
   ebird_species_code: string | null;
   common_name: string;
@@ -57,35 +61,21 @@ type DbTaxon = {
   order_name: string | null;
   family_common_name: string | null;
   family_scientific_name: string | null;
+  has_media: boolean;
+  has_observation: boolean;
+  latest_photo_id: number | null;
+  latest_photo_taken_at: string | null;
+  latest_photo_location: string | null;
 };
 
 type DbMedia = {
   ml_asset_id: number;
-  species_code: string;
   checklist_id: string | null;
   media_type: string | null;
   taken_at: string | null;
-  location_id: string | null;
   location_name: string | null;
-  rating: number | string | null;
-  rating_count: number | null;
   source_url: string | null;
   thumbnail_url: string | null;
-  is_public: boolean;
-};
-
-type DbChecklist = {
-  checklist_id: string;
-  observed_date: string | null;
-  observed_at: string | null;
-  location_id: string | null;
-};
-
-type DbLocation = {
-  location_id: string;
-  name: string;
-  latitude: number | null;
-  longitude: number | null;
 };
 
 type DbSpeciesLocation = {
@@ -98,31 +88,49 @@ type DbSpeciesLocation = {
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://ifqrvugxfmeclaqadqbd.supabase.co";
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmcXJ2dWd4Zm1lY2xhcWFkcWJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzOTI3MzcsImV4cCI6MjEwNDk2ODczN30.M3iMKEBs8JFzboUWBCt3CtYCbqIma8zmQ7KL2LqWE9Y";
-const PAGE_SIZE = 1000;
 
-async function fetchTable<T>(table: string, select = "*"): Promise<T[]> {
-  const all: T[] = [];
-  for (let offset = 0; ; offset += PAGE_SIZE) {
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=${encodeURIComponent(select)}`, {
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        Range: `${offset}-${offset + PAGE_SIZE - 1}`,
-      },
-      next: { revalidate: 300 },
-    });
-    if (!response.ok) throw new Error(`Supabase ${table} request failed: ${response.status}`);
-    const rows = (await response.json()) as T[];
-    all.push(...rows);
-    if (rows.length < PAGE_SIZE) break;
+const INDEX_SELECT = [
+  "species_code",
+  "ebird_species_code",
+  "common_name",
+  "scientific_name",
+  "korean_name",
+  "taxonomic_order",
+  "order_name",
+  "family_common_name",
+  "family_scientific_name",
+  "has_media",
+  "has_observation",
+  "latest_photo_id",
+  "latest_photo_taken_at",
+  "latest_photo_location",
+].join(",");
+
+const MEDIA_SELECT = [
+  "ml_asset_id",
+  "checklist_id",
+  "media_type",
+  "taken_at",
+  "location_name",
+  "source_url",
+  "thumbnail_url",
+].join(",");
+
+async function fetchRows<T>(resource: string, params: Record<string, string>): Promise<T[]> {
+  const search = new URLSearchParams(params);
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/${resource}?${search.toString()}`, {
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Supabase ${resource} request failed: ${response.status}`);
   }
-  return all;
-}
 
-function numeric(value: number | string | null | undefined) {
-  if (value === null || value === undefined || value === "") return undefined;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
+  return (await response.json()) as T[];
 }
 
 function dateOnly(value: string | null | undefined) {
@@ -140,129 +148,139 @@ function mediaKind(mediaType: string | null | undefined): "photo" | "video" | "a
   return "photo";
 }
 
-export async function getBirdingSpecies(): Promise<Species[]> {
-  const [taxa, media, checklists, locations, speciesLocations] = await Promise.all([
-    fetchTable<DbTaxon>("taxa"),
-    fetchTable<DbMedia>("media"),
-    fetchTable<DbChecklist>("checklists"),
-    fetchTable<DbLocation>("locations"),
-    fetchTable<DbSpeciesLocation>("public_species_locations"),
-  ]);
+function baseSpecies(row: DbBirdingIndex): Omit<Species, "photos" | "videos" | "audio" | "observationLocations" | "relatedChecklists"> {
+  const commonName = row.common_name.trim();
+  const family = row.family_scientific_name?.trim() || "Unclassified";
 
-  const locationsById = new Map(locations.map((location) => [location.location_id, location]));
-  const checklistsById = new Map(checklists.map((checklist) => [checklist.checklist_id, checklist]));
-  const mediaBySpecies = new Map<string, DbMedia[]>();
-  const observationLocationsBySpecies = new Map<string, DbSpeciesLocation[]>();
+  return {
+    code: row.species_code,
+    slug: row.ebird_species_code?.trim() || row.species_code,
+    commonName,
+    koreanName: row.korean_name?.trim() || commonName,
+    scientificName: row.scientific_name,
+    order: row.order_name?.trim() || "Unclassified",
+    family,
+    familyCommon: row.family_common_name?.trim() || family,
+    taxonomicOrder: row.taxonomic_order ?? Number.MAX_SAFE_INTEGER,
+    hasMedia: row.has_media,
+    hasObservation: row.has_observation,
+  };
+}
 
-  for (const item of media) {
-    if (!item.is_public) continue;
-    const list = mediaBySpecies.get(item.species_code) ?? [];
-    list.push(item);
-    mediaBySpecies.set(item.species_code, list);
-  }
+function indexPhoto(row: DbBirdingIndex): BirdPhoto | undefined {
+  if (row.latest_photo_id === null) return undefined;
 
-  for (const location of speciesLocations) {
-    const list = observationLocationsBySpecies.get(location.species_code) ?? [];
-    list.push(location);
-    observationLocationsBySpecies.set(location.species_code, list);
-  }
+  const takenAt = dateOnly(row.latest_photo_taken_at);
+  return {
+    id: String(row.latest_photo_id),
+    label: row.common_name.trim(),
+    year: takenAt ? Number(takenAt.slice(0, 4)) : 0,
+    takenAt,
+    location: row.latest_photo_location || "",
+    src: `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${row.latest_photo_id}/1200`,
+    sourceUrl: `https://macaulaylibrary.org/asset/${row.latest_photo_id}`,
+    mediaType: "photo",
+  };
+}
 
-  const birds = taxa.map<Species>((taxon) => {
-    const englishName = taxon.common_name.trim();
-    const koreanName = taxon.korean_name?.trim() || englishName;
-    const taxonOrder = taxon.taxonomic_order ?? Number.MAX_SAFE_INTEGER;
-    const order = taxon.order_name?.trim() || "Unclassified";
-    const family = taxon.family_scientific_name?.trim() || "Unclassified";
-    const familyCommon = taxon.family_common_name?.trim() || family;
+function mediaFromRow(item: DbMedia, commonName: string): BirdMedia {
+  const kind = mediaKind(item.media_type);
+  const takenAt = dateOnly(item.taken_at);
 
-    const birdMedia = mediaBySpecies.get(taxon.species_code) ?? [];
-    const allMedia = birdMedia.map<BirdMedia>((item) => {
-      const location = item.location_name
-        || (item.location_id ? locationsById.get(item.location_id)?.name : undefined)
-        || "";
-      const takenAt = dateOnly(item.taken_at);
-      return {
-        id: String(item.ml_asset_id),
-        label: englishName,
-        year: takenAt ? Number(takenAt.slice(0, 4)) : 0,
-        takenAt,
-        location,
-        rating: numeric(item.rating),
-        ratingCount: item.rating_count ?? undefined,
-        src: item.thumbnail_url || (mediaKind(item.media_type) === "photo"
-          ? `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${item.ml_asset_id}/1200`
-          : undefined),
-        sourceUrl: item.source_url || `https://macaulaylibrary.org/asset/${item.ml_asset_id}`,
-        checklistId: item.checklist_id ?? undefined,
-        mediaType: mediaKind(item.media_type),
-      };
-    });
+  return {
+    id: String(item.ml_asset_id),
+    label: commonName,
+    year: takenAt ? Number(takenAt.slice(0, 4)) : 0,
+    takenAt,
+    location: item.location_name || "",
+    src: item.thumbnail_url || (kind === "photo"
+      ? `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${item.ml_asset_id}/1200`
+      : undefined),
+    sourceUrl: item.source_url || `https://macaulaylibrary.org/asset/${item.ml_asset_id}`,
+    checklistId: item.checklist_id ?? undefined,
+    mediaType: kind,
+  };
+}
 
-    const photos = allMedia.filter((item) => item.mediaType === "photo").sort(newestMediaSort);
-    const videos = allMedia.filter((item) => item.mediaType === "video").sort(newestMediaSort);
-    const audio = allMedia.filter((item) => item.mediaType === "audio").sort(newestMediaSort);
-
-    const locationMap = new Map<string, ObservationLocation>();
-    for (const item of observationLocationsBySpecies.get(taxon.species_code) ?? []) {
-      locationMap.set(item.location_id, {
-        id: item.location_id,
-        name: item.location_name,
-        latitude: item.latitude,
-        longitude: item.longitude,
-      });
-    }
-
-    for (const item of birdMedia) {
-      if (!item.checklist_id) continue;
-      const checklist = checklistsById.get(item.checklist_id);
-      if (!checklist?.location_id || locationMap.has(checklist.location_id)) continue;
-      const location = locationsById.get(checklist.location_id);
-      if (location?.latitude === null || location?.latitude === undefined || location?.longitude === null || location?.longitude === undefined) continue;
-      locationMap.set(location.location_id, {
-        id: location.location_id,
-        name: location.name,
-        latitude: location.latitude,
-        longitude: location.longitude,
-      });
-    }
-
-    const observationLocations = [...locationMap.values()];
-
-    const checklistIds = [...new Set(birdMedia.map((item) => item.checklist_id).filter((id): id is string => Boolean(id)))];
-    const relatedChecklists = checklistIds.map<RelatedChecklist>((id) => {
-      const checklist = checklistsById.get(id);
-      const mediaMatch = birdMedia.find((item) => item.checklist_id === id);
-      const place = (checklist?.location_id ? locationsById.get(checklist.location_id)?.name : undefined)
-        || mediaMatch?.location_name
-        || "";
-      return {
-        id,
-        date: checklist?.observed_date || dateOnly(checklist?.observed_at) || dateOnly(mediaMatch?.taken_at) || "",
-        place,
-        url: `https://ebird.org/checklist/${id}`,
-      };
-    }).sort((a, b) => b.date.localeCompare(a.date));
-
-    return {
-      code: taxon.species_code,
-      slug: taxon.ebird_species_code?.trim() || taxon.species_code,
-      commonName: englishName,
-      koreanName,
-      scientificName: taxon.scientific_name,
-      order,
-      family,
-      familyCommon,
-      taxonomicOrder: taxonOrder,
-      photos,
-      videos,
-      audio,
-      observationLocations,
-      relatedChecklists,
-    };
+async function getIndexRow(code: string): Promise<DbBirdingIndex | null> {
+  const rows = await fetchRows<DbBirdingIndex>("public_birding_species_index", {
+    select: INDEX_SELECT,
+    or: `(species_code.eq.${code},ebird_species_code.eq.${code})`,
+    limit: "1",
   });
 
-  return birds.sort((a, b) => a.taxonomicOrder - b.taxonomicOrder || a.commonName.localeCompare(b.commonName));
+  return rows[0] ?? null;
 }
+
+export const getBirdingSpecies = cache(async (): Promise<Species[]> => {
+  const rows = await fetchRows<DbBirdingIndex>("public_birding_species_index", {
+    select: INDEX_SELECT,
+    order: "taxonomic_order.asc.nullslast,common_name.asc",
+  });
+
+  return rows.map((row) => {
+    const photo = indexPhoto(row);
+    return {
+      ...baseSpecies(row),
+      photos: photo ? [photo] : [],
+      videos: [],
+      audio: [],
+      observationLocations: [],
+      relatedChecklists: [],
+    };
+  });
+});
+
+export const getBirdingSpeciesDetail = cache(async (code: string): Promise<Species | null> => {
+  const row = await getIndexRow(code);
+  if (!row) return null;
+
+  const [mediaRows, locationRows] = await Promise.all([
+    fetchRows<DbMedia>("media", {
+      select: MEDIA_SELECT,
+      species_code: `eq.${row.species_code}`,
+      is_public: "eq.true",
+    }),
+    fetchRows<DbSpeciesLocation>("public_species_locations", {
+      select: "species_code,location_id,location_name,latitude,longitude",
+      species_code: `eq.${row.species_code}`,
+    }),
+  ]);
+
+  const base = baseSpecies(row);
+  const allMedia = mediaRows.map((item) => mediaFromRow(item, base.commonName));
+  const photos = allMedia.filter((item) => item.mediaType === "photo").sort(newestMediaSort);
+  const videos = allMedia.filter((item) => item.mediaType === "video").sort(newestMediaSort);
+  const audio = allMedia.filter((item) => item.mediaType === "audio").sort(newestMediaSort);
+
+  const checklistMap = new Map<string, RelatedChecklist>();
+  for (const item of allMedia) {
+    if (!item.checklistId) continue;
+    checklistMap.set(item.checklistId, {
+      id: item.checklistId,
+      date: item.takenAt,
+      place: item.location,
+      url: `https://ebird.org/checklist/${item.checklistId}`,
+    });
+  }
+  const relatedChecklists = [...checklistMap.values()].sort((a, b) => b.date.localeCompare(a.date));
+
+  const observationLocations = locationRows.map<ObservationLocation>((item) => ({
+    id: item.location_id,
+    name: item.location_name,
+    latitude: item.latitude,
+    longitude: item.longitude,
+  }));
+
+  return {
+    ...base,
+    photos,
+    videos,
+    audio,
+    observationLocations,
+    relatedChecklists,
+  };
+});
 
 export function getSpecies(birds: Species[], code: string) {
   return birds.find((bird) => bird.slug === code || bird.code === code);
@@ -289,14 +307,8 @@ export function getLatestSpeciesRepresentatives(birds: Species[]): RankedPhoto[]
 }
 
 export function getRecentPhotos(birds: Species[]): RankedPhoto[] {
-  const newestFirst = birds
-    .flatMap((bird) => bird.photos.map((photo) => ({ bird, photo })))
+  return birds
+    .map((bird) => ({ bird, photo: getHeroPhoto(bird) }))
+    .filter((item): item is RankedPhoto => Boolean(item.photo))
     .sort((a, b) => newestMediaSort(a.photo, b.photo));
-
-  const seen = new Set<string>();
-  return newestFirst.filter(({ bird }) => {
-    if (seen.has(bird.code)) return false;
-    seen.add(bird.code);
-    return true;
-  });
 }
