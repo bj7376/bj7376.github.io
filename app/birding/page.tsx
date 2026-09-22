@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { BirdName } from "@/components/BirdName";
 import { BirdOrderIndex } from "@/components/BirdOrderIndex";
 import { BirdingScrollButton } from "@/components/BirdingScrollButton";
+import { BirdSpeciesLink } from "@/components/BirdSpeciesLink";
 import { BirdingToolbar } from "@/components/BirdingToolbar";
 import { RecentPhotoStrip } from "@/components/PhotoArchive";
 import { getBirdingSpecies, getRecentPhotos, groupedSpecies, type Species } from "@/lib/birding";
@@ -107,14 +107,15 @@ export default async function BirdingPage() {
                                 const observationOnly = !bird.hasMedia && bird.hasObservation;
 
                                 return (
-                                  <a
+                                  <BirdSpeciesLink
                                     href={`/birding/species/${bird.slug}`}
-                                    className={observationOnly ? "observation-only" : undefined}
+                                    commonName={bird.commonName}
+                                    koreanName={bird.koreanName}
+                                    scientificName={bird.scientificName}
+                                    photoSrc={bird.photos[0]?.src}
+                                    observationOnly={observationOnly}
                                     key={bird.code}
-                                  >
-                                    <BirdName bird={bird} />
-                                    <em>{bird.scientificName}</em>
-                                  </a>
+                                  />
                                 );
                               })}
                             </div>

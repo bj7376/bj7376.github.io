@@ -110,3 +110,29 @@ html[data-bird-language="ko"] .bird-order-label-ko{display:inline}
 .photo-family-name span{display:block;font-size:var(--t-meta);font-style:italic;color:var(--muted);line-height:1.45}
 .photo-family-name strong{display:block;margin-top:1px;font-size:var(--t-meta);font-weight:400;color:var(--ink);line-height:1.45}
 .photo-index-grid-taxonomic{grid-template-columns:repeat(4,minmax(0,1fr));gap:24px 14px}
+
+
+.bird-species-hover-preview{
+  position:fixed;
+  z-index:16;
+  width:240px;
+  aspect-ratio:4/3;
+  overflow:hidden;
+  border:1px solid var(--rule);
+  background:var(--soft);
+  pointer-events:none;
+  opacity:1;
+  animation:bird-preview-in 90ms ease-out;
+}
+.bird-species-hover-preview img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+@keyframes bird-preview-in{
+  from{opacity:0}
+  to{opacity:1}
+}
+@media(prefers-reduced-motion:reduce){
+  .bird-species-hover-preview{animation:none}
+}

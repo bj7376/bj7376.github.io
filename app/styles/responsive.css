@@ -129,3 +129,8 @@
   .trip-full-row{grid-template-columns:44px 1fr auto}
   .trip-full-row p:nth-of-type(1),.trip-full-row p:nth-of-type(2){display:none}
 }
+
+
+@media(max-width:1100px), (hover:none){
+  .bird-species-hover-preview{display:none}
+}
