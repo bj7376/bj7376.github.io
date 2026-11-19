@@ -6,42 +6,35 @@ import * as THREE from "three";
 
 /*
   BirdGarden — a transparent strip fixed to the bottom of every page.
-  Seven small Korean passerines hop to seeds, peck, take off, flock, and
-  land again. Click empty space near the bottom to scatter seeds; a fast
-  mouse swipe near the ground flushes the birds. The layer never blocks
-  clicks on the page itself.
+  A handful of small Korean passerines hop between seeds inside the content
+  column. Every so often one flies off and another (random species) drops in.
+  Click empty space near the bottom to scatter seeds; a fast swipe flushes them.
 
-  Models: a lathe-turned teardrop body and a round head, each painted with
-  per-vertex plumage maps (cap, cheek, bib, nape, breast…), feather-shaped
-  wings and tails, split bills, eye highlights and three-toed feet.
+  Rig per bird
+    g ─ body (pitch / crouch) ─ torso, neck, head (yaw/pitch), wings, tail fan
+      └ hips ─ leg ×2: hip → tibia → ankle → tarsus → foot (toes + claws)
+  Hops are a 4-phase cycle: crouch → push-off → airborne tuck → landing absorb.
 */
 
 const STRIP_H = 240;      // px height of the overlay
-const PX = 34;            // px per world unit (bird ≈ 1 unit long)
+const PX = 34;            // px per world unit
 const GROUND_PAD = 0.9;   // world units between screen bottom and ground line
 const DEPTH = 0.7;        // ground half-depth (z)
-const MAX_SEEDS = 36;
+const MAX_SEEDS = 30;
 
 // ---------------------------------------------------------------- species
-// Paint functions receive the unit direction from the part's centre:
-// x = forward (bill), y = up, z = side.
 type Paint = (n: THREE.Vector3) => number;
-
 type Spec = {
   ko: string; en: string;
-  size: number;
-  plump: number;               // body roundness
-  headR: number;
-  paintHead: Paint;
-  paintBody: Paint;
+  size: number; plump: number; headR: number;
+  paintHead: Paint; paintBody: Paint;
   wing: number;
-  wingBands?: { from: number; to: number; color: number }[]; // bands across the folded wing (0 = shoulder … 1 = lower edge)
+  wingBands?: { from: number; to: number; color: number }[];
   primaries: number;
   tail: number; tailEdge?: number; tailLen: number; tailFork?: boolean;
   bill: number; billR: number; billL: number;
   legs: number;
 };
-
 const { abs } = Math;
 const side = (n: THREE.Vector3) => abs(n.z);
 
@@ -128,28 +121,15 @@ const SPECIES: Spec[] = [
   },
 ];
 
-// ---------------------------------------------------------------- model
-const matCache = new Map<string, THREE.Material>();
-const mat = (c: number) => {
-  const k = "c" + c;
-  let m = matCache.get(k) as THREE.MeshStandardMaterial | undefined;
-  if (!m) { m = new THREE.MeshStandardMaterial({ color: c, roughness: 0.85 }); matCache.set(k, m); }
-  return m;
-};
-const feather = (double = false) => {
-  const k = double ? "vc2" : "vc";
-  let m = matCache.get(k);
-  if (!m) {
-    m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, side: double ? THREE.DoubleSide : THREE.FrontSide });
-    matCache.set(k, m);
-  }
-  return m;
-};
-
+// ---------------------------------------------------------------- model helpers
 const _c = new THREE.Color();
 const _n = new THREE.Vector3();
-/** Write a per-vertex colour attribute from a paint function over direction-from-centre. */
-function paint(geo: THREE.BufferGeometry, fn: (n: THREE.Vector3, p: THREE.Vector3) => number, center = new THREE.Vector3()) {
+const hash = (x: number, y: number, z: number) => {
+  const s = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453;
+  return s - Math.floor(s);
+};
+/** Per-vertex colour from a paint function, with fine feather grain and a soft underside shade. */
+function paint(geo: THREE.BufferGeometry, fn: (n: THREE.Vector3, p: THREE.Vector3) => number, grain = 0.07, center = new THREE.Vector3()) {
   const pos = geo.attributes.position;
   const col = new Float32Array(pos.count * 3);
   const p = new THREE.Vector3();
@@ -157,148 +137,231 @@ function paint(geo: THREE.BufferGeometry, fn: (n: THREE.Vector3, p: THREE.Vector
     p.fromBufferAttribute(pos, i);
     _n.copy(p).sub(center).normalize();
     _c.setHex(fn(_n, p)).convertSRGBToLinear();
-    col.set([_c.r, _c.g, _c.b], i * 3);
+    const k = 1 + (hash(p.x * 9, p.y * 9, p.z * 9) - 0.5) * 2 * grain - Math.max(0, -_n.y - 0.6) * 0.18;
+    col.set([_c.r * k, _c.g * k, _c.b * k], i * 3);
   }
   geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
   return geo;
 }
-
-function bodyGeometry(plump: number) {
-  // teardrop profile along the lathe axis (y), tail end at -0.44, breast at +0.36
-  const pts: THREE.Vector2[] = [];
-  const N = 22;
-  for (let i = 0; i <= N; i++) {
-    const t = i / N;                       // 0 tail → 1 front
-    const y = -0.44 + t * 0.8;
-    const r = 0.31 * plump * Math.pow(Math.sin(Math.PI * t), 0.75) * (0.62 + 0.38 * t);
-    pts.push(new THREE.Vector2(Math.max(r, 0.001), y));
-  }
-  const geo = new THREE.LatheGeometry(pts, 28);
-  geo.rotateZ(-Math.PI / 2);               // lathe axis y → +x (forward)
-  geo.scale(1, 1.02, 0.94);
-  geo.computeVertexNormals();
-  return geo;
-}
-
-function featherShape(outline: [number, number][]) {
+const shape = (outline: [number, number][]) => {
   const s = new THREE.Shape();
   outline.forEach(([x, y], i) => (i ? s.lineTo(x, y) : s.moveTo(x, y)));
   s.closePath();
   return s;
+};
+/** A single feather blade lying in the XZ plane, quill at the origin, pointing along -x. */
+function featherBlade(len: number, width: number, thick = 0.012) {
+  const w = width / 2;
+  const geo = new THREE.ExtrudeGeometry(
+    shape([[0, -w * 0.4], [-len * 0.25, -w], [-len * 0.8, -w * 0.9], [-len, -w * 0.2], [-len * 1.02, 0], [-len, w * 0.3], [-len * 0.8, w], [-len * 0.25, w], [0, w * 0.4]]),
+    { depth: thick, bevelEnabled: false, curveSegments: 1 },
+  );
+  geo.rotateX(Math.PI / 2);
+  return geo;
 }
+const shade = (hex: number, k: number) => new THREE.Color(hex).multiplyScalar(k).getHex();
 
-function buildBird(sp: Spec) {
+type Rig = {
+  g: THREE.Group; body: THREE.Group; head: THREE.Group; hips: THREE.Group;
+  tail: THREE.Group; tailFeathers: THREE.Object3D[];
+  wingL: THREE.Group; wingR: THREE.Group; flightL: THREE.Object3D[]; flightR: THREE.Object3D[];
+  legs: { hip: THREE.Group; ankle: THREE.Group; foot: THREE.Group }[];
+  mats: THREE.Material[];
+};
+
+const L1 = 0.12, L2 = 0.17, HIP_Y = 0.28;   // tibia, tarsus, hip height
+const STAND: [number, number] = [0.5, 0.25];
+const CROUCH: [number, number] = [1.05, 0.75];
+
+function buildBird(sp: Spec): Rig {
+  const mats: THREE.Material[] = [];
+  const M = <T extends THREE.Material>(m: T) => { mats.push(m); return m; };
+  const featherMat = M(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92 }));
+  const featherMat2 = M(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, side: THREE.DoubleSide }));
+  const solid = new Map<number, THREE.MeshStandardMaterial>();
+  const S = (c: number, rough = 0.6) => {
+    let m = solid.get(c);
+    if (!m) { m = M(new THREE.MeshStandardMaterial({ color: c, roughness: rough })); solid.set(c, m); }
+    return m;
+  };
+
   const g = new THREE.Group();
   const body = new THREE.Group();
   g.add(body);
 
-  // body
-  const bodyMesh = new THREE.Mesh(paint(bodyGeometry(sp.plump), (n) => sp.paintBody(n)), feather());
-  bodyMesh.position.y = 0.44;
-  body.add(bodyMesh);
+  // torso: lathe teardrop, high resolution
+  const pts: THREE.Vector2[] = [];
+  for (let i = 0; i <= 30; i++) {
+    const t = i / 30;
+    const r = 0.31 * sp.plump * Math.pow(Math.sin(Math.PI * t), 0.72) * (0.6 + 0.4 * t);
+    pts.push(new THREE.Vector2(Math.max(r, 0.001), -0.44 + t * 0.8));
+  }
+  const torsoGeo = new THREE.LatheGeometry(pts, 40);
+  torsoGeo.rotateZ(-Math.PI / 2);
+  torsoGeo.scale(1, 1.02, 0.94);
+  torsoGeo.computeVertexNormals();
+  const torso = new THREE.Mesh(paint(torsoGeo, (n) => sp.paintBody(n)), featherMat);
+  torso.position.y = 0.46;
+  body.add(torso);
+
+  // neck: bridges head and breast so they read as one bird
+  const neckGeo = new THREE.SphereGeometry(0.17, 28, 20);
+  neckGeo.scale(1.05, 1, 0.95);
+  const neck = new THREE.Mesh(paint(neckGeo, (n) => (n.y < -0.1 || n.x > 0.4 ? sp.paintBody(new THREE.Vector3(0.6, n.y - 0.2, n.z).normalize()) : sp.paintHead(new THREE.Vector3(-0.5, n.y, n.z).normalize()))), featherMat);
+  neck.position.set(0.24, 0.62, 0);
+  body.add(neck);
 
   // head
   const head = new THREE.Group();
-  head.position.set(0.32, 0.7, 0);
+  head.position.set(0.33, 0.72, 0);
   body.add(head);
-  const headGeo = new THREE.SphereGeometry(sp.headR, 32, 24);
-  headGeo.scale(1.05, 0.98, 0.98);
-  head.add(new THREE.Mesh(paint(headGeo, (n) => sp.paintHead(n)), feather()));
-  // short crest for 진박새
+  const headGeo = new THREE.SphereGeometry(sp.headR, 40, 30);
+  headGeo.scale(1.06, 0.97, 0.97);
+  head.add(new THREE.Mesh(paint(headGeo, (n) => sp.paintHead(n), 0.05), featherMat));
   if (sp.en === "Coal Tit") {
-    const c = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.14, 8), mat(0x111111));
-    c.position.set(-0.08, 0.19, 0); c.rotation.z = 0.9; head.add(c);
+    const cg = new THREE.ConeGeometry(0.065, 0.15, 10); cg.translate(0, 0.075, 0);
+    const c = new THREE.Mesh(cg, S(0x111111, 0.8)); c.position.set(-0.06, 0.15, 0); c.rotation.z = 0.95; head.add(c);
   }
-  // eyes with catch-light
+  // eyes: dark iris, thin lid ring, catch-light
+  const ringCol = shade(sp.paintHead(new THREE.Vector3(0.45, 0.25, 0.85).normalize()), 0.8);
   for (const s of [1, -1]) {
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.03, 12, 10), new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.2 }));
-    eye.position.set(0.095, 0.045, 0.17 * s);
-    head.add(eye);
-    const glint = new THREE.Mesh(new THREE.SphereGeometry(0.009, 6, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-    glint.position.set(0.112, 0.06, 0.192 * s);
-    head.add(glint);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.031, 16, 12), S(0x070606, 0.15));
+    eye.position.set(0.095, 0.045, 0.168 * s); head.add(eye);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.031, 0.006, 6, 18), S(ringCol, 0.8));
+    ring.position.copy(eye.position).multiplyScalar(1.02); ring.lookAt(eye.position.clone().multiplyScalar(3)); head.add(ring);
+    const glint = new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 6), M(new THREE.MeshBasicMaterial({ color: 0xffffff })));
+    glint.position.set(0.112, 0.06, 0.19 * s); head.add(glint);
   }
-  // bill: upper + lower mandible
-  const bx = sp.headR * 0.92;
-  const upper = new THREE.Mesh(new THREE.ConeGeometry(sp.billR, sp.billL, 10), mat(sp.bill));
-  upper.rotation.z = -Math.PI / 2; upper.scale.set(1, 1, 0.85);
-  upper.position.set(bx + sp.billL / 2, -0.005, 0);
-  head.add(upper);
-  const lower = new THREE.Mesh(new THREE.ConeGeometry(sp.billR * 0.8, sp.billL * 0.8, 10), mat(new THREE.Color(sp.bill).multiplyScalar(0.85).getHex()));
-  lower.rotation.z = -Math.PI / 2 - 0.12; lower.scale.set(1, 1, 0.8);
-  lower.position.set(bx + sp.billL * 0.38, -0.03, 0);
-  head.add(lower);
+  // bill: upper and lower mandibles, culmen slightly hooked down
+  const bx = sp.headR * 0.9;
+  const upGeo = new THREE.ConeGeometry(sp.billR, sp.billL, 14); upGeo.rotateZ(-Math.PI / 2); upGeo.scale(1, 0.95, 0.85);
+  const up = new THREE.Mesh(upGeo, S(sp.bill, 0.35)); up.position.set(bx + sp.billL / 2, 0.0, 0); up.rotation.z = -0.06; head.add(up);
+  const loGeo = new THREE.ConeGeometry(sp.billR * 0.82, sp.billL * 0.82, 14); loGeo.rotateZ(-Math.PI / 2); loGeo.scale(1, 0.8, 0.8);
+  const lo = new THREE.Mesh(loGeo, S(shade(sp.bill, 0.82), 0.4)); lo.position.set(bx + sp.billL * 0.4, -0.028, 0); lo.rotation.z = -0.1; head.add(lo);
 
-  // tail: feather fan, pivot at the vent
-  const L = sp.tailLen;
-  const tailShape = sp.tailFork
-    ? featherShape([[0, -0.06], [-L, -0.11], [-L * 0.88, 0], [-L, 0.11], [0, 0.06]])
-    : featherShape([[0, -0.06], [-L * 0.9, -0.09], [-L, -0.04], [-L, 0.04], [-L * 0.9, 0.09], [0, 0.06]]);
-  const tailGeo = new THREE.ExtrudeGeometry(tailShape, { depth: 0.025, bevelEnabled: false });
-  tailGeo.rotateX(Math.PI / 2);            // shape y → z (spread sideways)
-  tailGeo.translate(0, 0.012, 0);
-  paint(tailGeo, (_n, p) => sp.tailEdge && abs(p.z) > 0.055 && p.x < -0.1 ? sp.tailEdge : sp.tail);
-  const tail = new THREE.Mesh(tailGeo, feather(true));
-  tail.position.set(-0.36, 0.5, 0); tail.rotation.z = 0.22;
+  // tail: six rectrices on a fan; pale outer edges where the species has them
+  const tail = new THREE.Group();
+  tail.position.set(-0.36, 0.5, 0); tail.rotation.z = 0.2;
   body.add(tail);
-
-  // legs: tarsus + three forward toes and a hallux
-  for (const s of [1, -1]) {
-    const foot = new THREE.Group();
-    foot.position.set(0.04, 0, 0.075 * s);
-    const tarsus = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.016, 0.2, 6), mat(sp.legs));
-    tarsus.position.y = 0.1; foot.add(tarsus);
-    for (const a of [-0.45, 0, 0.45, Math.PI]) {
-      const toe = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.01, a === Math.PI ? 0.07 : 0.09, 5), mat(sp.legs));
-      toe.rotation.z = Math.PI / 2;
-      const len = a === Math.PI ? 0.035 : 0.045;
-      toe.position.set(Math.cos(a) * len, 0.008, Math.sin(a) * len);
-      toe.rotation.y = -a;
-      foot.add(toe);
-    }
-    body.add(foot);
+  const tailFeathers: THREE.Object3D[] = [];
+  const nT = 6;
+  for (let i = 0; i < nT; i++) {
+    const u = i / (nT - 1) - 0.5;              // -0.5 … 0.5
+    const outer = abs(u) > 0.4;
+    const len = sp.tailLen * (sp.tailFork ? 0.88 + abs(u) * 0.3 : 1 - abs(u) * 0.12);
+    const geo = featherBlade(len, 0.075, 0.01);
+    paint(geo, (_n, p) => (sp.tailEdge && outer && p.z * Math.sign(u) > 0.005) || (sp.tailEdge && outer && p.x < -len * 0.6) ? sp.tailEdge : (abs(p.z) > 0.03 ? shade(sp.tail, 1.18) : sp.tail), 0.04);
+    const f = new THREE.Mesh(geo, featherMat2);
+    f.position.set(0, 0.003 * (3 - abs(i - 2.5)), u * 0.05);
+    f.userData.u = u;
+    tail.add(f); tailFeathers.push(f);
   }
 
-  // wings: feather-shaped panels; pivot at the shoulder, panel extends outward (z).
-  // folded = rotated down along the flank, primaries reaching back over the rump.
-  const wingOutline: [number, number][] = [
-    [0.13, 0], [0.12, 0.12], [0.04, 0.26], [-0.12, 0.34], [-0.3, 0.37], [-0.46, 0.33],
-    [-0.4, 0.24], [-0.3, 0.12], [-0.18, 0.02],
-  ];
+  // wings: covert panel with wingbars + individual flight feathers that fan out in flight
   const makeWing = (sd: 1 | -1) => {
     const pivot = new THREE.Group();
-    pivot.position.set(-0.02, 0.6, 0.19 * sd);
-    const geo = new THREE.ExtrudeGeometry(featherShape(wingOutline), { depth: 0.022, bevelEnabled: false });
-    geo.rotateX(Math.PI / 2);              // shape y → +z
-    if (sd === -1) geo.scale(1, 1, -1);
-    paint(geo, (_n, p) => {
-      const span = abs(p.z) / 0.37;        // 0 shoulder … 1 edge (= lower edge when folded)
-      for (const b of sp.wingBands ?? []) if (span >= b.from && span <= b.to && p.x > -0.3) return b.color;
-      if (p.x < -0.22) return sp.primaries;
+    pivot.position.set(-0.01, 0.62, 0.19 * sd);
+    const covGeo = new THREE.ExtrudeGeometry(shape([[0.14, 0], [0.13, 0.11], [0.05, 0.22], [-0.08, 0.27], [-0.2, 0.22], [-0.24, 0.1], [-0.17, 0]]), { depth: 0.024, bevelEnabled: false });
+    covGeo.rotateX(Math.PI / 2);
+    if (sd === -1) covGeo.scale(1, 1, -1);
+    paint(covGeo, (_n, p) => {
+      const span = abs(p.z) / 0.37;
+      for (const b of sp.wingBands ?? []) if (span >= b.from && span <= b.to) return b.color;
       return sp.wing;
-    });
-    const w = new THREE.Mesh(geo, feather(true));
-    pivot.add(w);
+    }, 0.06);
+    pivot.add(new THREE.Mesh(covGeo, featherMat2));
+    const flight: THREE.Object3D[] = [];
+    const nF = 7;
+    for (let i = 0; i < nF; i++) {
+      const u = i / (nF - 1);                  // 0 inner (secondary) … 1 outer primary
+      const len = 0.26 + u * 0.12;
+      const geo = featherBlade(len, 0.085, 0.01);
+      if (sd === -1) geo.scale(1, 1, -1);
+      const base = sp.wingBands?.some((b) => b.from >= 0.36) && u < 0.35 ? sp.wing : sp.primaries;
+      paint(geo, (_n, p) => (abs(p.z) > 0.03 ? shade(base, 1.45) : base), 0.04);
+      const holder = new THREE.Group();
+      holder.position.set(-0.06 - u * 0.1, -0.006 - i * 0.0015, (0.1 + u * 0.2) * sd);
+      const f = new THREE.Mesh(geo, featherMat2);
+      holder.add(f);
+      holder.userData.u = u; holder.userData.sd = sd;
+      pivot.add(holder); flight.push(holder);
+    }
     body.add(pivot);
-    return pivot;
+    return { pivot, flight };
   };
-  const wingL = makeWing(1);
-  const wingR = makeWing(-1);
+  const wl = makeWing(1), wr = makeWing(-1);
+
+  // legs: hip → tibia (feathered) → ankle → tarsus → foot with 3 front toes, hallux and claws
+  const hips = new THREE.Group();
+  g.add(hips);
+  const legMat = S(sp.legs, 0.55), clawMat = S(shade(sp.legs, 0.5), 0.4);
+  const thighCol = sp.paintBody(new THREE.Vector3(0, -0.8, 0.6).normalize());
+  const legs = [1, -1].map((sd) => {
+    const hip = new THREE.Group(); hip.position.set(0.03, HIP_Y, 0.08 * sd); hips.add(hip);
+    const tg = new THREE.CylinderGeometry(0.032, 0.02, L1, 8); tg.translate(0, -L1 / 2, 0);
+    hip.add(new THREE.Mesh(tg, S(thighCol, 0.95)));
+    const ankle = new THREE.Group(); ankle.position.y = -L1; hip.add(ankle);
+    const ag = new THREE.CylinderGeometry(0.013, 0.015, L2, 8); ag.translate(0, -L2 / 2, 0);
+    ankle.add(new THREE.Mesh(ag, legMat));
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.017, 8, 6), legMat); ankle.add(knob);
+    const foot = new THREE.Group(); foot.position.y = -L2; ankle.add(foot);
+    for (const [a, len] of [[-0.5, 0.085], [0, 0.1], [0.5, 0.085], [Math.PI, 0.07]] as const) {
+      const toe = new THREE.Group(); toe.rotation.y = -a; foot.add(toe);
+      const tgeo = new THREE.CylinderGeometry(0.008, 0.011, len, 6); tgeo.rotateZ(Math.PI / 2); tgeo.translate(len / 2, 0, 0);
+      const t = new THREE.Mesh(tgeo, legMat); t.position.y = -0.01; toe.add(t);
+      const cg = new THREE.ConeGeometry(0.007, 0.03, 6); cg.rotateZ(-Math.PI / 2 - 0.5);
+      const claw = new THREE.Mesh(cg, clawMat); claw.position.set(len + 0.008, -0.016, 0); toe.add(claw);
+    }
+    return { hip, ankle, foot };
+  });
 
   g.traverse((o) => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = true; });
-  g.scale.setScalar(sp.size);
-  return { g, body, head, tail, wingL, wingR };
+  return { g, body, head, hips, tail, tailFeathers, wingL: wl.pivot, wingR: wr.pivot, flightL: wl.flight, flightR: wr.flight, legs, mats };
 }
 
+// ---------------------------------------------------------------- pose helpers
+const legDrop = (a: number, b: number) => L1 * (Math.cos(STAND[0]) - Math.cos(a)) + L2 * (Math.cos(STAND[1]) - Math.cos(b));
+function setLegs(r: Rig, a: number, b: number) {
+  for (const l of r.legs) {
+    l.hip.rotation.z = a;               // tibia swings forward
+    l.ankle.rotation.z = -(a + b);      // tarsus angles back
+    l.foot.rotation.z = b;              // foot stays level
+  }
+}
+/** Set leg angles and lower body/hips so the feet stay on the ground. */
+function stance(r: Rig, a: number, b: number, grounded = true) {
+  setLegs(r, a, b);
+  const d = grounded ? -legDrop(a, b) : 0;
+  r.body.position.y = d; r.hips.position.y = d;
+}
+const FOLD = 1.4;
+function wings(r: Rig, angle: number, spread: number) {
+  r.wingL.rotation.x = angle; r.wingR.rotation.x = -angle;
+  for (const f of r.flightL) f.rotation.y = spread * (0.15 + f.userData.u * 0.55);
+  for (const f of r.flightR) f.rotation.y = -spread * (0.15 + f.userData.u * 0.55);
+}
+function fanTail(r: Rig, spread: number) {
+  for (const f of r.tailFeathers) f.rotation.y = f.userData.u * spread;
+}
+const lerp = THREE.MathUtils.lerp;
+const ease = (x: number) => x * x * (3 - 2 * x);
+
 // ---------------------------------------------------------------- behaviour
-type Mode = "walk" | "peck" | "idle" | "fly" | "land";
-type Bird = ReturnType<typeof buildBird> & {
+type Mode = "idle" | "hop" | "peck" | "fly" | "land" | "leave";
+type Bird = Rig & {
   sp: Spec; mode: Mode; t: number; vel: THREE.Vector3;
   target: THREE.Vector3 | null; seed: THREE.Mesh | null; pecks: number; phase: number;
+  hopFrom: THREE.Vector3; hopTo: THREE.Vector3; hopDur: number; wait: number;
+  alpha: number; absorb: number; flightTime: number;
 };
-
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
-const FOLD = 1.35; // wing rest angle
+
+function setAlpha(b: Bird, a: number) {
+  if (a === b.alpha) return;
+  b.alpha = a;
+  for (const m of b.mats) { m.transparent = a < 1; m.opacity = a; }
+  b.g.traverse((o) => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = a > 0.6; });
+}
 
 export function BirdGarden() {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -308,13 +371,10 @@ export function BirdGarden() {
   useEffect(() => {
     const host = hostRef.current;
     if (!host || hidden) return;
-    // Reduced motion: birds stay on the ground and move gently; no flushing / flight.
     const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     let renderer: THREE.WebGLRenderer;
-    try {
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    } catch { return; }
+    try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); } catch { return; }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -324,39 +384,37 @@ export function BirdGarden() {
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
     camera.position.set(0, 5, 20);
     camera.lookAt(0, 0, 0);
-
-    scene.add(new THREE.HemisphereLight(0xffffff, 0xd8d2c4, 1.7));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xd8d2c4, 1.8));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.6);
     sun.position.set(-4, 10, 6);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 512);
+    sun.shadow.bias = -0.0005;
     scene.add(sun);
-
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 10), new THREE.ShadowMaterial({ opacity: 0.1 }));
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     scene.add(ground);
 
-    // world bounds, updated on resize
     const B = { lo: -10, hi: 10, skyTop: 4 };   // x-range = the page content column
 
     // ---------- seeds
-    const seedGeom = new THREE.SphereGeometry(0.05, 5, 4);
+    const seedGeom = new THREE.SphereGeometry(0.045, 8, 6);
     seedGeom.scale(1.5, 0.7, 1);
-    const seedMats = [0xc9a66b, 0x8b6b3d, 0x3a3a3a].map(mat);
+    const seedMats = [0xc9a66b, 0x8b6b3d, 0x3a3a3a].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.7 }));
     const seeds: THREE.Mesh[] = [];
     const claimed = new Set<THREE.Mesh>();
+    const clampX = (x: number) => THREE.MathUtils.clamp(x, B.lo, B.hi);
+    const clampZ = (z: number) => THREE.MathUtils.clamp(z, -DEPTH, DEPTH);
     const addSeed = (x: number, z: number) => {
       if (seeds.length >= MAX_SEEDS) return;
       const s = new THREE.Mesh(seedGeom, seedMats[(Math.random() * 3) | 0]);
-      s.position.set(THREE.MathUtils.clamp(x, B.lo, B.hi), 0.035, THREE.MathUtils.clamp(z, -DEPTH, DEPTH));
+      s.position.set(clampX(x), 0.03, clampZ(z));
       s.rotation.y = Math.random() * Math.PI;
       s.castShadow = true;
       scene.add(s); seeds.push(s);
     };
-    const scatter = (cx: number, n: number, r: number) => {
-      for (let i = 0; i < n; i++) addSeed(cx + rand(-r, r), rand(-DEPTH, DEPTH));
-    };
+    const scatter = (cx: number, n: number, r: number) => { for (let i = 0; i < n; i++) addSeed(cx + rand(-r, r), rand(-DEPTH, DEPTH)); };
     const removeSeed = (s: THREE.Mesh) => {
       const i = seeds.indexOf(s); if (i >= 0) seeds.splice(i, 1);
       claimed.delete(s); scene.remove(s);
@@ -372,7 +430,6 @@ export function BirdGarden() {
       camera.updateProjectionMatrix();
       Object.assign(sun.shadow.camera, { left: -hw - 2, right: hw + 2, top: 8, bottom: -8 });
       sun.shadow.camera.updateProjectionMatrix();
-      // keep birds inside the content column (.shell minus its padding), not the side margins
       const shell = document.querySelector(".shell");
       let left = 0, right = w;
       if (shell) {
@@ -382,28 +439,45 @@ export function BirdGarden() {
       B.lo = left / PX - hw + 0.5;
       B.hi = right / PX - hw - 0.5;
       if (B.hi < B.lo) B.lo = B.hi = (B.lo + B.hi) / 2;
-      B.skyTop = h / PX - GROUND_PAD - 1.2;
+      B.skyTop = h / PX - GROUND_PAD - 0.8;
     };
     layout();
 
     // ---------- birds
-    const count = Math.round(THREE.MathUtils.clamp((B.hi - B.lo) * PX / 90, 6, 14));
     const birds: Bird[] = [];
-    for (let i = 0; i < count; i++) {
-      const sp = SPECIES[i % SPECIES.length];
-      const parts = buildBird(sp);
-      const onGround = calm || Math.random() < 0.6;
-      parts.g.position.set(rand(B.lo, B.hi), onGround ? 0 : rand(1.6, B.skyTop), rand(-DEPTH, DEPTH));
-      parts.g.rotation.y = Math.random() < 0.5 ? 0 : Math.PI;
-      parts.wingL.rotation.x = FOLD; parts.wingR.rotation.x = -FOLD;
-      scene.add(parts.g);
-      birds.push({
-        ...parts, sp, mode: onGround ? "idle" : "fly", t: rand(0, 2),
-        vel: onGround ? new THREE.Vector3() : new THREE.Vector3(rand(-1, 1) < 0 ? -3 : 3, 0, 0),
-        target: null, seed: null, pecks: 0, phase: Math.random() * 10,
-      });
-    }
-    for (let i = 0; i < 3; i++) scatter(rand(B.lo, B.hi), 5, 0.7);
+    const population = Math.round(THREE.MathUtils.clamp((B.hi - B.lo) * PX / 170, 3, 6));
+    const spawn = (arriving: boolean) => {
+      const sp = SPECIES[(Math.random() * SPECIES.length) | 0];
+      const rig = buildBird(sp);
+      const scale = 0.92;
+      rig.g.scale.setScalar(scale);
+      const b: Bird = {
+        ...rig, sp, mode: "idle", t: rand(0, 1), vel: new THREE.Vector3(), target: null, seed: null, pecks: 0,
+        phase: Math.random() * 10, hopFrom: new THREE.Vector3(), hopTo: new THREE.Vector3(), hopDur: 0.3, wait: 0,
+        alpha: 1, absorb: 0, flightTime: 0,
+      };
+      if (arriving && !calm) {
+        b.g.position.set(rand(B.lo, B.hi), B.skyTop + 1.2, rand(-DEPTH, DEPTH));
+        setAlpha(b, 0.001);
+        b.vel.set(rand(-2, 2), -1, 0);
+        beginLanding(b);
+      } else {
+        b.g.position.set(rand(B.lo, B.hi), 0, rand(-DEPTH, DEPTH));
+        stance(b, ...STAND);
+        wings(b, FOLD, 0);
+      }
+      b.g.rotation.y = Math.random() < 0.5 ? 0 : Math.PI;
+      scene.add(b.g);
+      birds.push(b);
+      return b;
+    };
+    const despawn = (b: Bird) => {
+      if (b.seed) { claimed.delete(b.seed); b.seed = null; }
+      scene.remove(b.g);
+      b.g.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) m.geometry.dispose(); });
+      b.mats.forEach((m) => m.dispose());
+      birds.splice(birds.indexOf(b), 1);
+    };
 
     const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
     const face = (b: Bird, dir: THREE.Vector3, k: number) => {
@@ -411,155 +485,216 @@ export function BirdGarden() {
       const d = Math.atan2(Math.sin(yaw - b.g.rotation.y), Math.cos(yaw - b.g.rotation.y));
       b.g.rotation.y += d * Math.min(1, k);
     };
-    const fold = (b: Bird, dt: number) => {
-      b.wingL.rotation.x = THREE.MathUtils.lerp(b.wingL.rotation.x, FOLD, dt * 10);
-      b.wingR.rotation.x = THREE.MathUtils.lerp(b.wingR.rotation.x, -FOLD, dt * 10);
-    };
-    const flap = (b: Bird, amp: number) => {
-      const a = 0.25 + Math.sin(b.phase) * amp;
-      b.wingL.rotation.x = a; b.wingR.rotation.x = -a;
-    };
-    const takeOff = (b: Bird, burst = 1) => {
-      if (calm) return;
-      if (b.seed) { claimed.delete(b.seed); b.seed = null; }
-      b.mode = "fly"; b.t = 0; b.target = null;
-      b.vel.set(rand(-3, 3) * burst, 4 * burst, 0);
-    };
     const nearestFreeSeed = (p: THREE.Vector3) => {
       let best: THREE.Mesh | null = null, bd = Infinity;
-      for (const s of seeds) {
-        if (claimed.has(s)) continue;
-        const d = s.position.distanceToSquared(p);
-        if (d < bd) { bd = d; best = s; }
-      }
+      for (const s of seeds) { if (claimed.has(s)) continue; const d = s.position.distanceToSquared(p); if (d < bd) { bd = d; best = s; } }
       return best;
+    };
+    function beginLanding(b: Bird) {
+      const s = nearestFreeSeed(b.g.position);
+      const x = s ? s.position.x + rand(-0.6, 0.6) : rand(B.lo, B.hi);
+      b.target = new THREE.Vector3(clampX(x), 0, rand(-DEPTH, DEPTH));
+      b.mode = "land"; b.t = 0;
+    }
+    const takeOff = (b: Bird, leave: boolean, burst = 1) => {
+      if (calm) return;
+      if (b.seed) { claimed.delete(b.seed); b.seed = null; }
+      b.mode = leave ? "leave" : "fly"; b.t = 0; b.target = null;
+      b.flightTime = rand(1.2, 2.6);
+      b.vel.set(rand(-2.5, 2.5) * burst, 3.5 * burst, 0);
+      stance(b, ...CROUCH);
+    };
+    const startHop = (b: Bird, to: THREE.Vector3) => {
+      b.hopFrom.copy(b.g.position); b.hopFrom.y = 0;
+      tmp.subVectors(to, b.hopFrom); tmp.y = 0;
+      const d = Math.min(tmp.length(), rand(0.16, 0.26));
+      b.hopTo.copy(b.hopFrom).addScaledVector(tmp.normalize(), d);
+      b.hopTo.x = clampX(b.hopTo.x); b.hopTo.z = clampZ(b.hopTo.z);
+      b.hopDur = calm ? 0.5 : rand(0.28, 0.34);
+      b.mode = "hop"; b.t = 0;
     };
 
     const update = (b: Bird, dt: number) => {
       b.t += dt;
       const p = b.g.position;
-      // tail flick on the ground
-      if (b.mode !== "fly" && b.mode !== "land") b.tail.rotation.z = 0.22 + Math.max(0, Math.sin(b.t * 5 + b.phase)) * 0.15;
+      b.phase += dt;
 
       switch (b.mode) {
         case "idle": {
-          fold(b, dt);
-          b.body.rotation.z = THREE.MathUtils.lerp(b.body.rotation.z, 0, dt * 8);
-          b.head.rotation.y = Math.sin(b.t * 3 + b.phase) * 0.5;
-          if (b.t > (calm ? 2.5 : 0.8)) {
-            b.head.rotation.y = 0;
+          wings(b, lerp(b.wingL.rotation.x, FOLD, Math.min(1, dt * 10)), 0);
+          // landing absorb, then settle into a relaxed stance with a little breathing
+          if (b.absorb > 0) {
+            b.absorb = Math.max(0, b.absorb - dt);
+            const k = ease(b.absorb / 0.22);
+            stance(b, lerp(STAND[0], CROUCH[0], k), lerp(STAND[1], CROUCH[1], k));
+          } else {
+            const br = Math.sin(b.phase * 2.2) * 0.015;
+            stance(b, STAND[0] + br, STAND[1] + br);
+          }
+          b.body.rotation.z = lerp(b.body.rotation.z, 0, dt * 8);
+          // alert head turns — quick saccades, then hold
+          if (Math.random() < dt * 2.5) b.head.userData.yaw = rand(-0.8, 0.8);
+          b.head.rotation.y = lerp(b.head.rotation.y, b.head.userData.yaw ?? 0, Math.min(1, dt * 18));
+          b.head.rotation.z = lerp(b.head.rotation.z, 0, dt * 10);
+          b.tail.rotation.z = lerp(b.tail.rotation.z, 0.2 + Math.max(0, Math.sin(b.phase * 4)) * 0.08, dt * 10);
+              if (b.target && b.wait > 0) {                   // short pause mid-route
+            b.wait -= dt;
+            if (b.wait <= 0) startHop(b, b.target);
+            break;
+          }
+          if (b.head.userData.next === undefined) b.head.userData.next = rand(0.5, 1.4);
+          if (b.t > (calm ? 2.2 : b.head.userData.next)) {
+            b.head.userData.next = rand(0.5, 1.4);
+            b.t = 0;
             const s = nearestFreeSeed(p);
-            if (s && Math.random() < 0.7) {
-              b.seed = s; claimed.add(s); b.target = s.position.clone(); b.mode = "walk"; b.t = 0;
-            } else if (Math.random() < (seeds.length ? 0.1 : 0.4)) {
-              takeOff(b);
-              if ((b.mode as Mode) !== "fly") b.t = 0;
-            } else {
-              b.target = new THREE.Vector3(THREE.MathUtils.clamp(p.x + rand(-2.5, 2.5), B.lo, B.hi), 0, rand(-DEPTH, DEPTH));
-              b.mode = "walk"; b.t = 0;
-            }
+            const r = Math.random();
+            if (!calm && r < 0.04) takeOff(b, true);
+            else if (s && r < 0.75) { b.seed = s; claimed.add(s); b.target = s.position.clone(); startHop(b, b.target); }
+            else if (r < 0.9) { b.target = new THREE.Vector3(clampX(p.x + rand(-1.5, 1.5)), 0, rand(-DEPTH, DEPTH)); startHop(b, b.target); }
           }
           break;
         }
-        case "walk": {
-          fold(b, dt);
-          if (!b.target) { b.mode = "idle"; b.t = 0; break; }
-          tmp.subVectors(b.target, p); tmp.y = 0;
-          if (tmp.length() < 0.3 * b.sp.size) { b.mode = b.seed ? "peck" : "idle"; b.t = 0; b.pecks = 0; p.y = 0; break; }
-          tmp.normalize();
-          face(b, tmp, dt * 10);
-          const hop = Math.max(0, Math.sin(b.t * 14));
-          p.addScaledVector(tmp, hop * dt * (calm ? 1.2 : 2.4));
-          p.y = hop * 0.08;
-          for (const o of birds) {
-            if (o === b || o.mode === "fly" || o.mode === "land") continue;
-            tmp2.subVectors(p, o.g.position); tmp2.y = 0;
-            const dd = tmp2.length();
-            if (dd > 0 && dd < 0.6) p.addScaledVector(tmp2.normalize(), (0.6 - dd) * dt * 6);
+        case "hop": {
+          b.head.userData.yaw = 0;
+          b.head.rotation.y = lerp(b.head.rotation.y, 0, dt * 15);
+          tmp.subVectors(b.hopTo, b.hopFrom); tmp.y = 0;
+          if (tmp.lengthSq() > 1e-6) face(b, tmp, dt * 18);
+          const u = Math.min(1, b.t / b.hopDur);
+          if (u < 0.22) {                                  // crouch
+            const k = ease(u / 0.22);
+            stance(b, lerp(STAND[0], CROUCH[0], k), lerp(STAND[1], CROUCH[1], k));
+            b.body.rotation.z = lerp(0, -0.12, k);           // lean in
+            b.tail.rotation.z = lerp(0.2, 0.32, k);
+          } else if (u < 0.8) {                            // push-off → airborne
+            const a = (u - 0.22) / 0.58;
+            const h = 0.13 * 4 * a * (1 - a);
+            p.lerpVectors(b.hopFrom, b.hopTo, ease(a)); p.y = h;
+            // legs snap straight on push, then tuck under the belly
+            const ext = Math.min(1, a / 0.2);
+            const tuck = Math.max(0, (a - 0.2) / 0.8);
+            const la = a < 0.2 ? lerp(CROUCH[0], 0.15, ext) : lerp(0.15, 0.85, Math.sin(tuck * Math.PI));
+            const lb = a < 0.2 ? lerp(CROUCH[1], -0.05, ext) : lerp(-0.05, 1.0, Math.sin(tuck * Math.PI));
+            stance(b, la, lb, false);
+            b.body.position.y = 0; b.hips.position.y = 0;
+            b.body.rotation.z = lerp(-0.12, 0.1, a);         // pitch up then level
+            b.head.rotation.z = -b.body.rotation.z * 0.7;    // head stays steady
+            b.tail.rotation.z = lerp(0.32, 0.05, Math.sin(a * Math.PI));
+            wings(b, FOLD - Math.sin(a * Math.PI) * 0.15, 0); // little wing flick
+          } else {                                         // landing absorb
+            p.copy(b.hopTo);
+            const k = (u - 0.8) / 0.2;
+            const c = Math.sin(k * Math.PI);
+            stance(b, lerp(STAND[0], CROUCH[0] * 0.85, c), lerp(STAND[1], CROUCH[1] * 0.85, c));
+            b.body.rotation.z = lerp(0.1, 0, k);
+            b.head.rotation.z = lerp(b.head.rotation.z, 0, 0.3);
+            b.tail.rotation.z = 0.2 + c * 0.18;              // tail dips for balance
+            wings(b, FOLD, 0);
           }
-          p.z = THREE.MathUtils.clamp(p.z, -DEPTH, DEPTH);
-          p.x = THREE.MathUtils.clamp(p.x, B.lo, B.hi);
-          if (b.t > 6) { b.mode = "idle"; b.t = 0; if (b.seed) { claimed.delete(b.seed); b.seed = null; } }
+          if (u >= 1) {
+            p.y = 0;
+            if (!b.target) { b.mode = "idle"; b.t = 0; break; }
+            tmp.subVectors(b.target, p); tmp.y = 0;
+            if (tmp.length() < 0.2) { b.target = null; if (b.seed) { b.mode = "peck"; b.pecks = 0; } else b.mode = "idle"; b.t = 0; }
+            else if (b.seed && !seeds.includes(b.seed)) { b.seed = null; b.mode = "idle"; b.t = 0; }
+            else { b.wait = Math.random() < 0.35 ? rand(0.1, 0.5) : 0; if (b.wait === 0) startHop(b, b.target); else { b.mode = "idle"; b.t = 0; } }
+          }
+          // personal space
+          for (const o of birds) {
+            if (o === b || o.mode === "fly" || o.mode === "leave" || o.mode === "land") continue;
+            tmp2.subVectors(b.hopTo, o.g.position); tmp2.y = 0;
+            const dd = tmp2.length();
+            if (dd > 0 && dd < 0.5) { b.hopTo.addScaledVector(tmp2.normalize(), (0.5 - dd) * dt * 4); b.hopTo.x = clampX(b.hopTo.x); b.hopTo.z = clampZ(b.hopTo.z); }
+          }
           break;
         }
         case "peck": {
-          fold(b, dt);
-          const k = Math.max(0, Math.sin(b.t * 12));
-          b.body.rotation.z = -k * 0.75;
-          if (b.t * 12 > Math.PI * 2 * (b.pecks + 1)) {
+          // crouch a little, tip the body forward from the hips, head strikes and recoils
+          const k = Math.max(0, Math.sin(b.t * 11));
+          const kk = k * k;
+          stance(b, lerp(STAND[0], 0.85, kk), lerp(STAND[1], 0.55, kk));
+          b.body.rotation.z = -kk * 0.55;
+          b.head.rotation.z = -kk * 0.35;
+          b.tail.rotation.z = 0.2 + kk * 0.35;
+          if (b.t * 11 > Math.PI * 2 * (b.pecks + 1)) {
             b.pecks++;
             if (b.seed && b.pecks >= 2) { removeSeed(b.seed); b.seed = null; }
-            if (b.pecks >= 3) { b.body.rotation.z = 0; b.mode = "idle"; b.t = 0; }
+            if (b.pecks >= 3) { b.mode = "idle"; b.t = 0; b.body.rotation.z = 0; b.head.rotation.z = 0; }
           }
           break;
         }
-        case "fly": {
-          b.body.rotation.z = 0;
-          b.phase += dt * 24;
-          flap(b, 1.1);
-          if (!b.target || p.distanceToSquared(b.target) < 1 || b.t % 3 < dt) {
-            b.target = new THREE.Vector3(rand(B.lo, B.hi), rand(1.6, Math.max(1.8, B.skyTop)), rand(-DEPTH, DEPTH));
+        case "fly":
+        case "leave": {
+          b.flightTime -= dt;
+          const flapRate = 26;
+          const ph = b.t * flapRate;
+          wings(b, 0.2 + Math.sin(ph) * 1.15, 0.6 + Math.sin(ph + 0.6) * 0.4);
+          stance(b, 1.35, 1.7, false);                     // feet tucked
+          b.body.position.y = 0; b.hips.position.y = 0;
+          b.body.rotation.z = lerp(b.body.rotation.z, 0.12, dt * 4);
+          b.head.rotation.z = -0.1;
+          b.tail.rotation.z = 0.05; fanTail(b, 0.25);
+          if (b.mode === "leave") {
+            tmp.set(b.vel.x >= 0 ? 4 : -4, 6, 0);
+            b.vel.lerp(tmp, Math.min(1, dt * 1.5));
+            if (p.y > B.skyTop - 0.6) setAlpha(b, Math.max(0, b.alpha - dt * 1.8));
+          } else {
+            if (!b.target) b.target = new THREE.Vector3(clampX(p.x + rand(-3, 3)), rand(1.4, B.skyTop - 0.4), clampZ(p.z));
+            tmp.subVectors(b.target, p).normalize().multiplyScalar(4.5);
+            b.vel.lerp(tmp, Math.min(1, dt * 2));
+            if (b.flightTime <= 0) beginLanding(b);
           }
-          tmp.subVectors(b.target, p).normalize().multiplyScalar(5);
-          tmp2.set(0, 0, 0); let n = 0;
-          for (const o of birds) {
-            if (o === b || o.mode !== "fly") continue;
-            const d = o.g.position.distanceTo(p);
-            if (d < 3) { tmp2.add(o.vel); n++; }
-            if (d < 0.9 && d > 0) tmp.add(new THREE.Vector3().subVectors(p, o.g.position).normalize().multiplyScalar(4));
-          }
-          if (n) tmp.addScaledVector(tmp2.divideScalar(n), 0.4);
-          b.vel.lerp(tmp, Math.min(1, dt * 1.2));
-          b.vel.clampLength(1.5, 5.5);
           p.addScaledVector(b.vel, dt);
-          p.x = THREE.MathUtils.clamp(p.x, B.lo, B.hi);
-          p.y = THREE.MathUtils.clamp(p.y, 0.3, B.skyTop + 0.6);
-          p.z = THREE.MathUtils.clamp(p.z, -DEPTH, DEPTH);
+          if (b.mode === "fly") p.x = clampX(p.x);
+          p.z = clampZ(p.z);
           tmp2.copy(b.vel); tmp2.y = 0;
-          face(b, tmp2, dt * 6);
-          b.g.rotation.z = THREE.MathUtils.clamp(b.vel.y * 0.08, -0.4, 0.4);
-          if (b.t > 4 && Math.random() < dt * (seeds.length ? 0.35 : 0.06)) {
-            const s = nearestFreeSeed(p);
-            const x = s ? s.position.x + rand(-0.7, 0.7) : rand(B.lo, B.hi);
-            b.target = new THREE.Vector3(THREE.MathUtils.clamp(x, B.lo, B.hi), 0, rand(-DEPTH, DEPTH));
-            b.mode = "land"; b.t = 0;
-          }
+          if (tmp2.lengthSq() > 0.01) face(b, tmp2, dt * 6);
+          b.g.rotation.z = THREE.MathUtils.clamp(b.vel.y * 0.07, -0.35, 0.35);
           break;
         }
         case "land": {
-          b.phase += dt * 16;
-          flap(b, 0.9);
+          if (b.alpha < 1) setAlpha(b, Math.min(1, b.alpha + dt * 1.6));
           tmp.subVectors(b.target!, p);
           const d = tmp.length();
-          tmp.normalize().multiplyScalar(Math.min(4, 0.8 + d * 0.8));
+          const near = THREE.MathUtils.clamp(1 - d / 1.5, 0, 1);
+          // flap, then flare: wings high and spread, tail fanned, legs reaching forward
+          const ph = b.t * (22 - near * 8);
+          wings(b, lerp(0.2 + Math.sin(ph) * 1.0, -0.3 + Math.sin(ph) * 0.35, near), lerp(0.6, 1, near));
+          fanTail(b, lerp(0.25, 0.7, near));
+          stance(b, lerp(1.35, 0.1, near), lerp(1.7, -0.1, near), false);
+          b.body.position.y = 0; b.hips.position.y = 0;
+          b.body.rotation.z = lerp(0.1, 0.35, near);
+          b.head.rotation.z = -b.body.rotation.z * 0.8;
+          tmp.normalize().multiplyScalar(Math.min(4, 0.6 + d * 0.9));
           b.vel.lerp(tmp, Math.min(1, dt * 3));
           p.addScaledVector(b.vel, dt);
+          p.x = clampX(p.x); p.z = clampZ(p.z);
           tmp2.copy(b.vel); tmp2.y = 0;
           if (tmp2.lengthSq() > 0.01) face(b, tmp2, dt * 6);
-          b.g.rotation.z = THREE.MathUtils.lerp(b.g.rotation.z, 0, dt * 4);
-          if (d < 0.15 || p.y <= 0) {
-            p.y = 0; b.g.rotation.z = 0; b.vel.set(0, 0, 0);
-            b.mode = "idle"; b.t = 0; b.target = null;
+          b.g.rotation.z = lerp(b.g.rotation.z, 0, dt * 5);
+          if (d < 0.08 || p.y <= 0) {
+            p.y = 0; b.g.rotation.z = 0; b.vel.set(0, 0, 0); b.target = null;
+            fanTail(b, 0); setAlpha(b, 1);
+            b.mode = "idle"; b.t = 0; b.absorb = 0.22; b.body.rotation.z = 0; b.head.rotation.z = 0;
           }
           break;
         }
       }
     };
 
-    // ---------- interaction (window-level; the canvas itself ignores the pointer)
+    for (let i = 0; i < population; i++) spawn(false);
+    for (let i = 0; i < 3; i++) scatter(rand(B.lo, B.hi), 5, 0.6);
+
+    // ---------- interaction (window-level; the canvas ignores the pointer)
     const toWorldX = (clientX: number) => (clientX / window.innerWidth - 0.5) * (camera.right - camera.left);
     const inStrip = (clientY: number) => clientY > window.innerHeight - STRIP_H * 0.55;
     const isInteractive = (el: EventTarget | null) =>
       el instanceof Element && !!el.closest("a,button,input,textarea,select,label,summary,video,[role=button],[contenteditable]");
-
     const onDown = (e: PointerEvent) => {
       if (!inStrip(e.clientY) || isInteractive(e.target)) return;
       const x = toWorldX(e.clientX);
       let flushed = false;
-      for (const b of birds) {
-        if (b.mode !== "fly" && Math.abs(b.g.position.x - x) < 0.9) { takeOff(b, 1.4); flushed = !calm; }
-      }
-      if (!flushed) scatter(x, 7, 0.5);
+      for (const b of birds) if ((b.mode === "idle" || b.mode === "hop" || b.mode === "peck") && Math.abs(b.g.position.x - x) < 0.8) { takeOff(b, Math.random() < 0.3, 1.3); flushed = !calm; }
+      if (!flushed) scatter(x, 6, 0.4);
     };
     let last = { x: 0, y: 0, t: 0 };
     const onMove = (e: PointerEvent) => {
@@ -568,7 +703,7 @@ export function BirdGarden() {
       last = { x: e.clientX, y: e.clientY, t: now };
       if (v < 2.5 || !inStrip(e.clientY)) return;
       const x = toWorldX(e.clientX);
-      for (const b of birds) if (b.mode !== "fly" && Math.abs(b.g.position.x - x) < 1.5) takeOff(b, 1.2);
+      for (const b of birds) if ((b.mode === "idle" || b.mode === "hop" || b.mode === "peck") && Math.abs(b.g.position.x - x) < 1.3) takeOff(b, Math.random() < 0.3, 1.1);
     };
     window.addEventListener("pointerdown", onDown, { passive: true });
     window.addEventListener("pointermove", onMove, { passive: true });
@@ -577,13 +712,22 @@ export function BirdGarden() {
     // ---------- loop
     const clock = new THREE.Clock();
     let reseed = 0, raf = 0;
+    const arrivals: number[] = [];
     const loop = () => {
       raf = requestAnimationFrame(loop);
       const dt = Math.min(clock.getDelta(), 0.05);
       if (document.hidden) return;
       reseed += dt;
-      if (reseed > 7 && seeds.length < 5) { reseed = 0; scatter(rand(B.lo, B.hi), 5, 0.6); }
-      for (const b of birds) update(b, calm ? dt * 0.6 : dt);
+      if (reseed > 7 && seeds.length < 5) { reseed = 0; scatter(rand(B.lo, B.hi), 5, 0.5); }
+      for (const b of [...birds]) {
+        update(b, calm ? dt * 0.6 : dt);
+        if (b.mode === "leave" && b.alpha <= 0) { despawn(b); arrivals.push(rand(1.5, 5)); }
+      }
+      // one leaves, another arrives
+      for (let i = arrivals.length - 1; i >= 0; i--) {
+        arrivals[i] -= dt;
+        if (arrivals[i] <= 0) { arrivals.splice(i, 1); if (birds.length < population) spawn(true); }
+      }
       renderer.render(scene, camera);
     };
     loop();
@@ -593,8 +737,10 @@ export function BirdGarden() {
       window.removeEventListener("pointerdown", onDown);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("resize", layout);
-      scene.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) m.geometry.dispose(); });
-      matCache.forEach((m) => m.dispose()); matCache.clear();
+      [...birds].forEach(despawn);
+      seeds.forEach((s) => scene.remove(s));
+      seedGeom.dispose(); seedMats.forEach((m) => m.dispose());
+      ground.geometry.dispose(); (ground.material as THREE.Material).dispose();
       renderer.dispose();
       host.removeChild(renderer.domElement);
     };
