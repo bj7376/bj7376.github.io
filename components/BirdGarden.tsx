@@ -17,7 +17,7 @@ import * as THREE from "three";
 */
 
 const STRIP_H = 240;      // px height of the overlay
-const PX = 44;            // px per world unit (bird ≈ 1 unit long)
+const PX = 34;            // px per world unit (bird ≈ 1 unit long)
 const GROUND_PAD = 0.9;   // world units between screen bottom and ground line
 const DEPTH = 0.7;        // ground half-depth (z)
 const MAX_SEEDS = 36;
@@ -48,7 +48,7 @@ const side = (n: THREE.Vector3) => abs(n.z);
 const SPECIES: Spec[] = [
   { // 오목눈이 Aegithalos caudatus magnus — white head with broad black brow band to the nape,
     // black back, pinkish scapulars, white underparts washed pink, very long black tail with white edges
-    ko: "오목눈이", en: "Long-tailed Tit", size: 0.72, plump: 1.12, headR: 0.2,
+    ko: "오목눈이", en: "Long-tailed Tit", size: 1, plump: 1.12, headR: 0.2,
     paintHead: (n) => (n.y > 0.05 && n.y < 0.5 && side(n) > 0.35 && n.x < 0.55) || (n.x < -0.55 && n.y > 0.05) ? 0x161616 : 0xf8f6f4,
     paintBody: (n) => n.y > 0.25 ? 0x1e1e1e : n.y > -0.05 && n.x < 0.1 ? 0xe2b9bb : n.x > 0.2 ? 0xf7f4f2 : 0xf0e2e2,
     wing: 0x242424, primaries: 0x151515,
@@ -57,7 +57,7 @@ const SPECIES: Spec[] = [
     bill: 0x111111, billR: 0.03, billL: 0.06, legs: 0x2a2a2a,
   },
   { // 붉은머리오목눈이 Sinosuthora webbiana — rufous crown and wings, pinkish throat, buff-brown body, stubby pale bill
-    ko: "붉은머리오목눈이", en: "Vinous-throated Parrotbill", size: 0.72, plump: 1.08, headR: 0.2,
+    ko: "붉은머리오목눈이", en: "Vinous-throated Parrotbill", size: 1, plump: 1.08, headR: 0.2,
     paintHead: (n) => n.y < -0.35 && n.x > -0.2 ? 0xd7a691 : n.y > -0.1 ? 0xa65934 : 0xb8775a,
     paintBody: (n) => n.y > 0.2 ? 0x8f6f58 : n.x > 0.2 ? 0xd3a68e : 0xd8bba6,
     wing: 0x8b5434, primaries: 0x6e4430,
@@ -66,7 +66,7 @@ const SPECIES: Spec[] = [
   },
   { // 박새 Parus minor — glossy black head and throat, white cheeks, black ventral "tie",
     // olive-green mantle, blue-grey wings with a white bar
-    ko: "박새", en: "Japanese Tit", size: 0.95, plump: 1, headR: 0.21,
+    ko: "박새", en: "Japanese Tit", size: 1, plump: 1, headR: 0.21,
     paintHead: (n) => side(n) > 0.5 && n.y > -0.5 && n.y < 0.22 && n.x > -0.55 ? 0xffffff : 0x111111,
     paintBody: (n) =>
       n.y < 0.05 && n.x > 0.15 && abs(n.z) < 0.2 ? 0x111111 :                // ventral tie
@@ -80,7 +80,7 @@ const SPECIES: Spec[] = [
   },
   { // 곤줄박이 Sittiparus varius — cream forehead & cheeks, black crown/eye-line and throat,
     // cream nape patch, chestnut nape-collar and underparts, blue-grey back
-    ko: "곤줄박이", en: "Varied Tit", size: 0.95, plump: 1, headR: 0.21,
+    ko: "곤줄박이", en: "Varied Tit", size: 1, plump: 1, headR: 0.21,
     paintHead: (n) =>
       n.y < -0.4 && n.x > -0.3 ? 0x141414 :                                  // throat
       n.x < -0.62 && n.y > 0.1 && n.y < 0.6 ? 0xf1e2c0 :                    // nape patch
@@ -92,7 +92,7 @@ const SPECIES: Spec[] = [
     bill: 0x1a1a1a, billR: 0.045, billL: 0.11, legs: 0x5b6470,
   },
   { // 쇠박새 Poecile palustris — glossy black cap, small black bib, off-white cheeks, plain grey-brown
-    ko: "쇠박새", en: "Marsh Tit", size: 0.82, plump: 1.02, headR: 0.2,
+    ko: "쇠박새", en: "Marsh Tit", size: 1, plump: 1.02, headR: 0.2,
     paintHead: (n) =>
       n.y > 0.18 ? 0x0e0e0e :
       n.y < -0.55 && n.x > 0.15 && abs(n.z) < 0.45 ? 0x0e0e0e :
@@ -104,7 +104,7 @@ const SPECIES: Spec[] = [
   },
   { // 되새 Fringilla montifringilla (male, winter) — mottled dark head, orange throat/breast and shoulders,
     // white belly, black mantle with buff fringes, black wings with orange bar, yellow bill, forked tail
-    ko: "되새", en: "Brambling", size: 1.05, plump: 0.96, headR: 0.2,
+    ko: "되새", en: "Brambling", size: 1, plump: 0.96, headR: 0.2,
     paintHead: (n) => n.y < -0.3 && n.x > -0.2 ? 0xe0893a : n.y > 0.4 && Math.sin(n.x * 30) > 0.6 ? 0x5a4636 : 0x2a2320,
     paintBody: (n) =>
       n.y > 0.2 ? (Math.sin(n.x * 25) * Math.sin(n.z * 25) > 0.5 ? 0x7a5e44 : 0x2c2420) :
@@ -116,7 +116,7 @@ const SPECIES: Spec[] = [
   },
   { // 진박새 Periparus ater — black head with short crest and bib, white cheeks and nape spot,
     // slate back, buff underparts, two white wingbars
-    ko: "진박새", en: "Coal Tit", size: 0.75, plump: 1, headR: 0.21,
+    ko: "진박새", en: "Coal Tit", size: 1, plump: 1, headR: 0.21,
     paintHead: (n) =>
       side(n) > 0.5 && n.y > -0.45 && n.y < 0.2 && n.x > -0.5 ? 0xffffff :
       n.x < -0.7 && n.y > -0.1 && n.y < 0.55 && abs(n.z) < 0.4 ? 0xffffff : 0x111111,
@@ -338,7 +338,7 @@ export function BirdGarden() {
     scene.add(ground);
 
     // world bounds, updated on resize
-    const B = { x: 10, skyTop: 4 };
+    const B = { lo: -10, hi: 10, skyTop: 4 };   // x-range = the page content column
 
     // ---------- seeds
     const seedGeom = new THREE.SphereGeometry(0.05, 5, 4);
@@ -349,7 +349,7 @@ export function BirdGarden() {
     const addSeed = (x: number, z: number) => {
       if (seeds.length >= MAX_SEEDS) return;
       const s = new THREE.Mesh(seedGeom, seedMats[(Math.random() * 3) | 0]);
-      s.position.set(THREE.MathUtils.clamp(x, -B.x, B.x), 0.035, THREE.MathUtils.clamp(z, -DEPTH, DEPTH));
+      s.position.set(THREE.MathUtils.clamp(x, B.lo, B.hi), 0.035, THREE.MathUtils.clamp(z, -DEPTH, DEPTH));
       s.rotation.y = Math.random() * Math.PI;
       s.castShadow = true;
       scene.add(s); seeds.push(s);
@@ -372,19 +372,28 @@ export function BirdGarden() {
       camera.updateProjectionMatrix();
       Object.assign(sun.shadow.camera, { left: -hw - 2, right: hw + 2, top: 8, bottom: -8 });
       sun.shadow.camera.updateProjectionMatrix();
-      B.x = hw - 0.8;
+      // keep birds inside the content column (.shell minus its padding), not the side margins
+      const shell = document.querySelector(".shell");
+      let left = 0, right = w;
+      if (shell) {
+        const r = shell.getBoundingClientRect(), cs = getComputedStyle(shell);
+        left = r.left + parseFloat(cs.paddingLeft); right = r.right - parseFloat(cs.paddingRight);
+      }
+      B.lo = left / PX - hw + 0.5;
+      B.hi = right / PX - hw - 0.5;
+      if (B.hi < B.lo) B.lo = B.hi = (B.lo + B.hi) / 2;
       B.skyTop = h / PX - GROUND_PAD - 1.2;
     };
     layout();
 
     // ---------- birds
-    const count = Math.round(THREE.MathUtils.clamp(window.innerWidth / 110, 6, 14));
+    const count = Math.round(THREE.MathUtils.clamp((B.hi - B.lo) * PX / 90, 6, 14));
     const birds: Bird[] = [];
     for (let i = 0; i < count; i++) {
       const sp = SPECIES[i % SPECIES.length];
       const parts = buildBird(sp);
       const onGround = calm || Math.random() < 0.6;
-      parts.g.position.set(rand(-B.x, B.x), onGround ? 0 : rand(1.6, B.skyTop), rand(-DEPTH, DEPTH));
+      parts.g.position.set(rand(B.lo, B.hi), onGround ? 0 : rand(1.6, B.skyTop), rand(-DEPTH, DEPTH));
       parts.g.rotation.y = Math.random() < 0.5 ? 0 : Math.PI;
       parts.wingL.rotation.x = FOLD; parts.wingR.rotation.x = -FOLD;
       scene.add(parts.g);
@@ -394,7 +403,7 @@ export function BirdGarden() {
         target: null, seed: null, pecks: 0, phase: Math.random() * 10,
       });
     }
-    for (let i = 0; i < 3; i++) scatter(rand(-B.x, B.x), 5, 0.7);
+    for (let i = 0; i < 3; i++) scatter(rand(B.lo, B.hi), 5, 0.7);
 
     const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
     const face = (b: Bird, dir: THREE.Vector3, k: number) => {
@@ -446,7 +455,7 @@ export function BirdGarden() {
               takeOff(b);
               if ((b.mode as Mode) !== "fly") b.t = 0;
             } else {
-              b.target = new THREE.Vector3(THREE.MathUtils.clamp(p.x + rand(-2.5, 2.5), -B.x, B.x), 0, rand(-DEPTH, DEPTH));
+              b.target = new THREE.Vector3(THREE.MathUtils.clamp(p.x + rand(-2.5, 2.5), B.lo, B.hi), 0, rand(-DEPTH, DEPTH));
               b.mode = "walk"; b.t = 0;
             }
           }
@@ -469,6 +478,7 @@ export function BirdGarden() {
             if (dd > 0 && dd < 0.6) p.addScaledVector(tmp2.normalize(), (0.6 - dd) * dt * 6);
           }
           p.z = THREE.MathUtils.clamp(p.z, -DEPTH, DEPTH);
+          p.x = THREE.MathUtils.clamp(p.x, B.lo, B.hi);
           if (b.t > 6) { b.mode = "idle"; b.t = 0; if (b.seed) { claimed.delete(b.seed); b.seed = null; } }
           break;
         }
@@ -488,7 +498,7 @@ export function BirdGarden() {
           b.phase += dt * 24;
           flap(b, 1.1);
           if (!b.target || p.distanceToSquared(b.target) < 1 || b.t % 3 < dt) {
-            b.target = new THREE.Vector3(rand(-B.x, B.x), rand(1.6, Math.max(1.8, B.skyTop)), rand(-DEPTH, DEPTH));
+            b.target = new THREE.Vector3(rand(B.lo, B.hi), rand(1.6, Math.max(1.8, B.skyTop)), rand(-DEPTH, DEPTH));
           }
           tmp.subVectors(b.target, p).normalize().multiplyScalar(5);
           tmp2.set(0, 0, 0); let n = 0;
@@ -502,7 +512,7 @@ export function BirdGarden() {
           b.vel.lerp(tmp, Math.min(1, dt * 1.2));
           b.vel.clampLength(1.5, 5.5);
           p.addScaledVector(b.vel, dt);
-          p.x = THREE.MathUtils.clamp(p.x, -B.x - 1, B.x + 1);
+          p.x = THREE.MathUtils.clamp(p.x, B.lo, B.hi);
           p.y = THREE.MathUtils.clamp(p.y, 0.3, B.skyTop + 0.6);
           p.z = THREE.MathUtils.clamp(p.z, -DEPTH, DEPTH);
           tmp2.copy(b.vel); tmp2.y = 0;
@@ -510,8 +520,8 @@ export function BirdGarden() {
           b.g.rotation.z = THREE.MathUtils.clamp(b.vel.y * 0.08, -0.4, 0.4);
           if (b.t > 4 && Math.random() < dt * (seeds.length ? 0.35 : 0.06)) {
             const s = nearestFreeSeed(p);
-            const x = s ? s.position.x + rand(-0.7, 0.7) : rand(-B.x, B.x);
-            b.target = new THREE.Vector3(THREE.MathUtils.clamp(x, -B.x, B.x), 0, rand(-DEPTH, DEPTH));
+            const x = s ? s.position.x + rand(-0.7, 0.7) : rand(B.lo, B.hi);
+            b.target = new THREE.Vector3(THREE.MathUtils.clamp(x, B.lo, B.hi), 0, rand(-DEPTH, DEPTH));
             b.mode = "land"; b.t = 0;
           }
           break;
@@ -572,7 +582,7 @@ export function BirdGarden() {
       const dt = Math.min(clock.getDelta(), 0.05);
       if (document.hidden) return;
       reseed += dt;
-      if (reseed > 7 && seeds.length < 5) { reseed = 0; scatter(rand(-B.x, B.x), 5, 0.6); }
+      if (reseed > 7 && seeds.length < 5) { reseed = 0; scatter(rand(B.lo, B.hi), 5, 0.6); }
       for (const b of birds) update(b, calm ? dt * 0.6 : dt);
       renderer.render(scene, camera);
     };
