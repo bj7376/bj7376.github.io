@@ -57,9 +57,7 @@
 .project-video{width:100%;max-width:680px;margin:40px 0 14px}
 .project-video iframe{display:block;width:100%;aspect-ratio:16/9;border:0}
 
-/* ---------- bird garden (home, bottom) ---------- */
-.bird-garden{margin-top:var(--gap);border-top:1px solid var(--rule)}
-.bird-garden-canvas{position:relative;width:100%;height:340px;cursor:crosshair;touch-action:pan-y}
-.bird-garden-canvas canvas{display:block;width:100%;height:100%}
-.bird-garden-hint{margin:6px 0 0;font-size:var(--t-meta);color:var(--muted)}
-@media(max-width:600px){.bird-garden-canvas{height:260px}}
+/* ---------- bird garden (fixed strip on every page) ---------- */
+.bird-garden{position:fixed;left:0;right:0;bottom:0;height:240px;pointer-events:none;z-index:50}
+.bird-garden canvas{display:block;width:100%;height:100%}
+body{padding-bottom:120px}

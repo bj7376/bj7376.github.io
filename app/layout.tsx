@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
+import { BirdGarden } from "@/components/BirdGarden";
 
 export const metadata: Metadata = {
   title: { default: "Byoungjae Kim", template: "%s — Byoungjae Kim" },
@@ -17,6 +18,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <main>{children}</main>
           <SiteFooter />
         </div>
+        <BirdGarden />
       </body>
     </html>
   );

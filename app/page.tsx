@@ -1,5 +1,4 @@
 import { RichText } from "@/components/SanityContent";
-import { BirdGarden } from "@/components/BirdGarden";
 import {
   getSanityAwards,
   getSanityBio,
@@ -111,8 +110,6 @@ export default async function HomePage() {
         <h2>Exhibitions</h2>
         {exhibitions.map((exhibition) => <p key={`${exhibition.title}-${exhibition.year}`}>{exhibitionText(exhibition)}</p>)}
       </section>
-
-      <BirdGarden />
     </article>
   );
 }
