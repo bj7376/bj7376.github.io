@@ -59,5 +59,8 @@
 
 /* ---------- bird garden (fixed strip on every page) ---------- */
 .bird-garden{position:fixed;left:0;right:0;bottom:0;height:240px;pointer-events:none;z-index:50}
-.bird-garden canvas{display:block;width:100%;height:100%}
+.bird-garden canvas{position:relative;z-index:1;display:block;width:100%;height:100%}
+/* short white fade behind the ground so the birds read clearly over page text */
+.bird-garden::before{content:"";position:absolute;left:0;right:0;bottom:0;height:120px;
+  background:linear-gradient(to top,#fff 0%,rgba(255,255,255,.92) 45%,rgba(255,255,255,0) 100%)}
 body{padding-bottom:120px}
