@@ -376,7 +376,7 @@ export function BirdGarden() {
   useEffect(() => {
     const host = hostRef.current;
     if (!host || hidden) return;
-    const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const calm = false; // birds always animate (reduced-motion previously blocked flight and clicks)
 
     let renderer: THREE.WebGLRenderer;
     try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); } catch { return; }
@@ -450,7 +450,7 @@ export function BirdGarden() {
 
     // ---------- birds
     const birds: Bird[] = [];
-    const population = Math.round(THREE.MathUtils.clamp((B.hi - B.lo) * PX / 105, 5, 9));
+    const population = Math.round(THREE.MathUtils.clamp((B.hi - B.lo) * PX / 150, 4, 6));
     const spawn = (arriving: boolean) => {
       const sp = SPECIES[(Math.random() * SPECIES.length) | 0];
       const rig = buildBird(sp);
@@ -509,14 +509,14 @@ export function BirdGarden() {
       b.vel.set(rand(-2.5, 2.5) * burst, 3.5 * burst, 0);
       stance(b, ...CROUCH);
     };
-    const startWalk = (b: Bird) => { b.mode = "walk"; b.t = 0; };
+    const startWalk = (b: Bird) => { if (b.target) startHop(b, b.target); };
     const startHop = (b: Bird, to: THREE.Vector3) => {
       b.hopFrom.copy(b.g.position); b.hopFrom.y = 0;
       tmp.subVectors(to, b.hopFrom); tmp.y = 0;
-      const d = Math.min(tmp.length(), rand(0.16, 0.26));
+      const d = Math.min(tmp.length(), rand(0.11, 0.19));
       b.hopTo.copy(b.hopFrom).addScaledVector(tmp.normalize(), d);
       b.hopTo.x = clampX(b.hopTo.x); b.hopTo.z = clampZ(b.hopTo.z);
-      b.hopDur = calm ? 0.5 : rand(0.28, 0.34);
+      b.hopDur = rand(0.13, 0.17);
       b.mode = "hop"; b.t = 0;
     };
 
@@ -537,7 +537,7 @@ export function BirdGarden() {
             const br = Math.sin(b.phase * 2.2) * 0.015;
             stance(b, STAND[0] + br, STAND[1] + br);
           }
-          b.body.rotation.z = lerp(b.body.rotation.z, 0, dt * 8);
+          b.body.rotation.z = lerp(b.body.rotation.z, -0.1, dt * 8);
           b.body.rotation.x = lerp(b.body.rotation.x, 0, dt * 8);
           b.head.position.x = lerp(b.head.position.x, 0.33, dt * 10);
           // alert head turns — quick saccades, then hold
@@ -613,34 +613,34 @@ export function BirdGarden() {
           tmp.subVectors(b.hopTo, b.hopFrom); tmp.y = 0;
           if (tmp.lengthSq() > 1e-6) face(b, tmp, dt * 18);
           const u = Math.min(1, b.t / b.hopDur);
-          if (u < 0.22) {                                  // crouch
-            const k = ease(u / 0.22);
+          if (u < 0.18) {                                  // quick crouch
+            const k = ease(u / 0.18);
             stance(b, lerp(STAND[0], CROUCH[0], k), lerp(STAND[1], CROUCH[1], k));
-            b.body.rotation.z = lerp(0, -0.12, k);           // lean in
+            b.body.rotation.z = lerp(-0.14, -0.22, k);       // horizontal foraging posture
             b.tail.rotation.z = lerp(0.2, 0.32, k);
-          } else if (u < 0.8) {                            // push-off → airborne
-            const a = (u - 0.22) / 0.58;
-            const h = 0.13 * 4 * a * (1 - a);
+          } else if (u < 0.82) {                           // push-off → airborne, feet together
+            const a = (u - 0.18) / 0.64;
+            const h = 0.065 * 4 * a * (1 - a);
             p.lerpVectors(b.hopFrom, b.hopTo, ease(a)); p.y = h;
             // legs snap straight on push, then tuck under the belly
             const ext = Math.min(1, a / 0.2);
             const tuck = Math.max(0, (a - 0.2) / 0.8);
-            const la = a < 0.2 ? lerp(CROUCH[0], 0.15, ext) : lerp(0.15, 0.85, Math.sin(tuck * Math.PI));
-            const lb = a < 0.2 ? lerp(CROUCH[1], -0.05, ext) : lerp(-0.05, 1.0, Math.sin(tuck * Math.PI));
+            const la = a < 0.2 ? lerp(CROUCH[0], 0.3, ext) : lerp(0.3, 0.75, Math.sin(tuck * Math.PI));
+            const lb = a < 0.2 ? lerp(CROUCH[1], 0.05, ext) : lerp(0.05, 0.85, Math.sin(tuck * Math.PI));
             stance(b, la, lb, false);
             b.body.position.y = 0; b.hips.position.y = 0;
-            b.body.rotation.z = lerp(-0.12, 0.1, a);         // pitch up then level
+            b.body.rotation.z = lerp(-0.22, -0.1, Math.sin(a * Math.PI));
             b.head.rotation.z = -b.body.rotation.z * 0.7;    // head stays steady
-            b.tail.rotation.z = lerp(0.32, 0.05, Math.sin(a * Math.PI));
-            wings(b, FOLD - Math.sin(a * Math.PI) * 0.15, 0); // little wing flick
+            b.tail.rotation.z = lerp(0.3, 0.12, Math.sin(a * Math.PI));
+            wings(b, FOLD - Math.sin(a * Math.PI) * 0.22, 0); // wing flick
           } else {                                         // landing absorb
             p.copy(b.hopTo);
-            const k = (u - 0.8) / 0.2;
+            const k = (u - 0.82) / 0.18;
             const c = Math.sin(k * Math.PI);
             stance(b, lerp(STAND[0], CROUCH[0] * 0.85, c), lerp(STAND[1], CROUCH[1] * 0.85, c));
-            b.body.rotation.z = lerp(0.1, 0, k);
+            b.body.rotation.z = lerp(-0.1, -0.16, k);
             b.head.rotation.z = lerp(b.head.rotation.z, 0, 0.3);
-            b.tail.rotation.z = 0.2 + c * 0.18;              // tail dips for balance
+            b.tail.rotation.z = 0.2 + c * 0.35;              // tail flicks up on landing
             wings(b, FOLD, 0);
           }
           if (u >= 1) {
@@ -649,7 +649,7 @@ export function BirdGarden() {
             tmp.subVectors(b.target, p); tmp.y = 0;
             if (tmp.length() < 0.2) { b.target = null; if (b.seed) { b.mode = "peck"; b.pecks = 0; } else b.mode = "idle"; b.t = 0; }
             else if (b.seed && !seeds.includes(b.seed)) { b.seed = null; b.mode = "idle"; b.t = 0; }
-            else { b.wait = Math.random() < 0.35 ? rand(0.1, 0.5) : 0; if (b.wait === 0) startHop(b, b.target); else { b.mode = "idle"; b.t = 0; } }
+            else { b.wait = Math.random() < 0.3 ? rand(0.15, 0.55) : rand(0, 0.04); if (b.wait > 0.1) b.head.userData.yaw = rand(-0.9, 0.9); b.mode = "idle"; b.t = 0; }
           }
           // personal space
           for (const o of birds) {
@@ -808,6 +808,7 @@ export function BirdGarden() {
         arrivals[i] -= dt;
         if (arrivals[i] <= 0) { arrivals.splice(i, 1); if (birds.length < population) spawn(true); }
       }
+      host.dataset.flying = String(birds.filter((b) => !grounded(b)).length);
       renderer.render(scene, camera);
     };
     loop();
