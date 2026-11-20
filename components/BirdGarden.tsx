@@ -28,7 +28,7 @@ type Spec = {
   ko: string; en: string;
   size: number; plump: number; headR: number;
   /** silhouette: body [length, depth, width], head [x, y, z] scale, head offset [forward, up], neck thickness */
-  form?: { body?: [number, number, number]; head?: [number, number, number]; headAt?: [number, number]; neck?: number };
+  form?: { body?: [number, number, number]; head?: [number, number, number]; headAt?: [number, number]; neck?: number; tailLift?: number };
   paintHead: Paint; paintBody: Paint;
   wing: number;
   wingBands?: { from: number; to: number; color: number }[];
@@ -38,23 +38,38 @@ type Spec = {
   legs: number;
 };
 const { abs } = Math;
+const _g1 = new THREE.Color(), _g2 = new THREE.Color();
+/** Blend two colours by t∈[0,1] (smoothstepped) — for washes and gradual transitions. */
+const mix = (a: number, b: number, t: number) => {
+  const k = THREE.MathUtils.smoothstep(t, 0, 1);
+  return _g1.setHex(a).lerp(_g2.setHex(b), k).getHex();
+};
+const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 const side = (n: THREE.Vector3) => abs(n.z);
 
 const SPECIES: Spec[] = [
   { // 오목눈이 Aegithalos caudatus magnus — white head with broad black brow band to the nape,
     // black back, pinkish scapulars, white underparts washed pink, very long black tail with white edges
-    ko: "오목눈이", en: "Long-tailed Tit", form: { body: [0.84, 1.06, 1.06], head: [0.978, 0.978, 0.978], headAt: [-0.06, -0.05], neck: 1.15 }, size: 1, plump: 1.12, headR: 0.2,
+    ko: "오목눈이", en: "Long-tailed Tit", form: { body: [0.88, 0.97, 1.0], head: [1, 1, 1], headAt: [0.02, 0.035], neck: 1.0, tailLift: 0.17 }, size: 1, plump: 1.12, headR: 0.2,
     paintHead: (n) => (n.y > 0.05 && n.y < 0.5 && side(n) > 0.35 && n.x < 0.55) || (n.x < -0.55 && n.y > 0.05) ? 0x161616 : 0xf8f6f4,
-    paintBody: (n) => n.y > 0.25 ? 0x1e1e1e : n.y > -0.05 && n.x < 0.1 ? 0xe2b9bb : n.x > 0.2 ? 0xf7f4f2 : 0xf0e2e2,
+    // white breast flowing from the white head; black only down the centre of the back from the nape;
+    // pink scapular stripe; underparts washing gradually from white to pink toward the vent
+    paintBody: (n) =>
+      n.y > 0.5 && n.x < 0.3 ? 0x1b1b1b :
+      n.y > 0.28 && n.x < 0.18 && abs(n.z) < 0.75 ? (n.x < -0.05 ? 0xd7a0a4 : 0x1b1b1b) :
+      mix(0xeccacb, 0xf8f6f3, clamp01((n.x + 0.45) / 0.8)),
     wing: 0x242424, primaries: 0x151515,
     wingBands: [{ from: 0, to: 0.32, color: 0xd9a3a6 }],
     tail: 0x181818, tailEdge: 0xf2f2f2, tailLen: 1.1,
     bill: 0x111111, billR: 0.03, billL: 0.06, legs: 0x2a2a2a,
   },
   { // 붉은머리오목눈이 Sinosuthora webbiana — rufous crown and wings, pinkish throat, buff-brown body, stubby pale bill
-    ko: "붉은머리오목눈이", en: "Vinous-throated Parrotbill", form: { body: [0.88, 1.04, 1.04], head: [1.0, 1.0, 1.0], headAt: [-0.04, -0.03], neck: 1.1 }, size: 1, plump: 1.08, headR: 0.2,
+    ko: "붉은머리오목눈이", en: "Vinous-throated Parrotbill", form: { body: [0.9, 0.98, 1.0], head: [1.02, 1.02, 1.02], headAt: [0.02, 0.03], neck: 1.0, tailLift: 0.12 }, size: 1, plump: 1.08, headR: 0.2,
     paintHead: (n) => n.y < -0.35 && n.x > -0.2 ? 0xd7a691 : n.y > -0.1 ? 0xa65934 : 0xb8775a,
-    paintBody: (n) => n.y > 0.2 ? 0x8f6f58 : n.x > 0.2 ? 0xd3a68e : 0xd8bba6,
+    // rufous of the head fading into warm brown on the back; pinkish-buff underparts, warmest at the throat
+    paintBody: (n) => n.y > 0.15
+      ? mix(0x8b6b55, 0xa65934, clamp01((n.x - 0.05) / 0.4))
+      : mix(0xd6bca8, 0xd8a48b, clamp01((n.x + 0.1) / 0.6)),
     wing: 0x8b5434, primaries: 0x6e4430,
     tail: 0x7d5c46, tailLen: 0.75,
     bill: 0xc4b39c, billR: 0.07, billL: 0.09, legs: 0x8a7a6a,
@@ -438,6 +453,7 @@ function buildBird(sp: Spec): Rig {
     const f = new THREE.Mesh(geo, featherMat2);
     f.position.set(0, 0.003 * (3 - abs(i - 2.5)), u * 0.075);
     f.userData.u = u;
+    f.rotation.z = -F.tailLift;          // long tails held level, not drooping
     tail.add(f); tailFeathers.push(f);
   }
 
