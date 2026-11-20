@@ -119,6 +119,75 @@ const SPECIES: Spec[] = [
     tail: 0x4d5560, tailLen: 0.44,
     bill: 0x151515, billR: 0.034, billL: 0.09, legs: 0x5b6470,
   },
+  { // 참새 Passer montanus — chestnut crown, white cheek with black ear spot, small black bib,
+    // white collar, streaked brown back, two thin white wingbars, dark conical bill
+    ko: "참새", en: "Eurasian Tree Sparrow", size: 1, plump: 1, headR: 0.21,
+    paintHead: (n) =>
+      n.y < -0.42 && n.x > 0.05 && abs(n.z) < 0.5 ? 0x141414 :                      // bib
+      side(n) > 0.62 && n.y > -0.25 && n.y < 0.12 && n.x > -0.45 && n.x < 0.15 ? 0x141414 : // ear spot
+      n.y > 0.25 ? 0x8a4a2a :                                                       // chestnut crown
+      n.x < -0.55 ? 0xf2efe8 : 0xf6f3ee,                                            // collar / cheek
+    paintBody: (n) =>
+      n.y > 0.2 ? (Math.sin(n.x * 28) * Math.sin(n.z * 22) > 0.35 ? 0x2e2620 : 0x9a6f4c) :
+      n.x > 0.2 ? 0xd9d3c9 : 0xcfc5b6,
+    wing: 0x8a5e3e, primaries: 0x4a3a2e,
+    wingBands: [{ from: 0.22, to: 0.27, color: 0xf3efe6 }, { from: 0.4, to: 0.45, color: 0xf3efe6 }],
+    tail: 0x5e4a3a, tailLen: 0.48,
+    bill: 0x2a2624, billR: 0.06, billL: 0.11, legs: 0xb08a6a,
+  },
+  { // 밀화부리 Eophona migratoria (male) — glossy black hood on face & crown, huge yellow bill
+    // with dark tip, grey-brown body, orange-buff flanks, black wings with white primary patches
+    ko: "밀화부리", en: "Chinese Grosbeak", size: 1, plump: 0.98, headR: 0.22,
+    paintHead: (n) => n.x > -0.35 || n.y > 0.55 ? 0x0f0f10 : 0x8e8a86,
+    paintBody: (n) =>
+      n.y > 0.15 ? 0x8a8580 : n.x > 0.25 ? 0x9e978f : n.y > -0.55 && n.x > -0.25 ? 0xd59a5c : 0xece8e2,
+    wing: 0x141416, primaries: 0x0e0e10,
+    wingBands: [{ from: 0.62, to: 0.78, color: 0xf2f2f2 }],
+    tail: 0x111113, tailLen: 0.5, tailFork: true,
+    bill: 0xe8c23a, billR: 0.105, billL: 0.17, legs: 0xc6a890,
+  },
+  { // 노랑배진박새 Periparus venustulus (male) — black head and bib, white cheeks and nape spot,
+    // bright yellow underparts, blue-grey back, two white wingbars
+    ko: "노랑배진박새", en: "Yellow-bellied Tit", size: 1, plump: 1, headR: 0.2,
+    paintHead: (n) =>
+      side(n) > 0.52 && n.y > -0.42 && n.y < 0.2 && n.x > -0.5 ? 0xffffff :
+      n.x < -0.7 && n.y > -0.1 && n.y < 0.55 && abs(n.z) < 0.4 ? 0xffffff : 0x121212,
+    paintBody: (n) => n.y > 0.22 ? 0x6e7a8a : n.y > 0.05 && n.x < -0.1 ? 0xb6c86a : 0xf2d533,
+    wing: 0x5a6676, primaries: 0x404a58,
+    wingBands: [{ from: 0.2, to: 0.27, color: 0xffffff }, { from: 0.4, to: 0.47, color: 0xffffff }],
+    tail: 0x3f4752, tailEdge: 0xe8e8e8, tailLen: 0.46,
+    bill: 0x151515, billR: 0.034, billL: 0.085, legs: 0x5b6470,
+  },
+  { // 검은머리촉새 Emberiza aureola (male, breeding) — black face, chestnut crown/nape and back,
+    // chestnut breast band across bright yellow underparts, bold white shoulder patch
+    ko: "검은머리촉새", en: "Yellow-breasted Bunting", size: 1, plump: 0.95, headR: 0.2,
+    paintHead: (n) =>
+      n.y < -0.45 && n.x > -0.1 ? 0xf2cf2a :                                      // yellow throat
+      n.x > 0.2 || (side(n) > 0.5 && n.y < 0.3 && n.x > -0.4) ? 0x111111 :        // black face
+      0x7a3a1e,                                                                     // chestnut crown/nape
+    paintBody: (n) =>
+      n.y > 0.2 ? (Math.sin(n.x * 26) * Math.sin(n.z * 20) > 0.45 ? 0x3a2418 : 0x7a3a1e) :
+      n.x > 0.55 && n.y > -0.45 ? 0x7a3a1e :                                       // breast band
+      0xf2cf2a,
+    wing: 0x6e3a22, primaries: 0x3c2a20,
+    wingBands: [{ from: 0, to: 0.22, color: 0xffffff }],
+    tail: 0x3e2c22, tailEdge: 0xf2f2f2, tailLen: 0.58, tailFork: true,
+    bill: 0xb7a39a, billR: 0.05, billL: 0.1, legs: 0xb89a85,
+  },
+  { // 콩새 Coccothraustes coccothraustes — orange-brown head, grey nape collar, black bib & lores
+    // around a massive pale-horn bill, brown back, pinkish-buff belly, white wing panel, short white-tipped tail
+    ko: "콩새", en: "Hawfinch", size: 1, plump: 1.05, headR: 0.23,
+    paintHead: (n) =>
+      n.y < -0.35 && n.x > 0.1 && abs(n.z) < 0.4 ? 0x121212 :                     // bib
+      n.x > 0.82 && n.y > -0.35 && n.y < 0.1 ? 0x121212 :                          // lores
+      n.x < -0.55 && n.y < 0.35 ? 0x8f9196 :                                        // grey collar
+      0xb87a45,                                                                     // tawny head
+    paintBody: (n) => n.y > 0.2 ? (n.x > 0.4 ? 0x8f9196 : 0x7a5038) : 0xd7b19a,
+    wing: 0x6a4630, primaries: 0x15151c,
+    wingBands: [{ from: 0.2, to: 0.42, color: 0xece6dc }],
+    tail: 0x7a5038, tailEdge: 0xf2f2f2, tailLen: 0.36,
+    bill: 0xa9b0b8, billR: 0.12, billL: 0.17, legs: 0xc8a08a,
+  },
 ];
 
 // ---------------------------------------------------------------- model helpers
