@@ -27,6 +27,8 @@ type Paint = (n: THREE.Vector3) => number;
 type Spec = {
   ko: string; en: string;
   size: number; plump: number; headR: number;
+  /** silhouette: body [length, depth, width], head [x, y, z] scale, head offset [forward, up], neck thickness */
+  form?: { body?: [number, number, number]; head?: [number, number, number]; headAt?: [number, number]; neck?: number };
   paintHead: Paint; paintBody: Paint;
   wing: number;
   wingBands?: { from: number; to: number; color: number }[];
@@ -41,7 +43,7 @@ const side = (n: THREE.Vector3) => abs(n.z);
 const SPECIES: Spec[] = [
   { // 오목눈이 Aegithalos caudatus magnus — white head with broad black brow band to the nape,
     // black back, pinkish scapulars, white underparts washed pink, very long black tail with white edges
-    ko: "오목눈이", en: "Long-tailed Tit", size: 1, plump: 1.12, headR: 0.2,
+    ko: "오목눈이", en: "Long-tailed Tit", form: { body: [0.84, 1.06, 1.06], head: [0.95, 0.95, 0.95], headAt: [-0.06, -0.05], neck: 1.15 }, size: 1, plump: 1.12, headR: 0.2,
     paintHead: (n) => (n.y > 0.05 && n.y < 0.5 && side(n) > 0.35 && n.x < 0.55) || (n.x < -0.55 && n.y > 0.05) ? 0x161616 : 0xf8f6f4,
     paintBody: (n) => n.y > 0.25 ? 0x1e1e1e : n.y > -0.05 && n.x < 0.1 ? 0xe2b9bb : n.x > 0.2 ? 0xf7f4f2 : 0xf0e2e2,
     wing: 0x242424, primaries: 0x151515,
@@ -50,7 +52,7 @@ const SPECIES: Spec[] = [
     bill: 0x111111, billR: 0.03, billL: 0.06, legs: 0x2a2a2a,
   },
   { // 붉은머리오목눈이 Sinosuthora webbiana — rufous crown and wings, pinkish throat, buff-brown body, stubby pale bill
-    ko: "붉은머리오목눈이", en: "Vinous-throated Parrotbill", size: 1, plump: 1.08, headR: 0.2,
+    ko: "붉은머리오목눈이", en: "Vinous-throated Parrotbill", form: { body: [0.88, 1.04, 1.04], head: [1, 1, 1], headAt: [-0.04, -0.03], neck: 1.1 }, size: 1, plump: 1.08, headR: 0.2,
     paintHead: (n) => n.y < -0.35 && n.x > -0.2 ? 0xd7a691 : n.y > -0.1 ? 0xa65934 : 0xb8775a,
     paintBody: (n) => n.y > 0.2 ? 0x8f6f58 : n.x > 0.2 ? 0xd3a68e : 0xd8bba6,
     wing: 0x8b5434, primaries: 0x6e4430,
@@ -59,7 +61,7 @@ const SPECIES: Spec[] = [
   },
   { // 박새 Parus minor — glossy black head and throat, white cheeks, black ventral "tie",
     // olive-green mantle, blue-grey wings with a white bar
-    ko: "박새", en: "Japanese Tit", size: 1, plump: 1, headR: 0.21,
+    ko: "박새", en: "Japanese Tit", form: { body: [1, 1, 1], head: [1.04, 1, 1], headAt: [0, 0] }, size: 1, plump: 1, headR: 0.21,
     paintHead: (n) => side(n) > 0.5 && n.y > -0.5 && n.y < 0.22 && n.x > -0.55 ? 0xffffff : 0x111111,
     paintBody: (n) =>
       n.y < 0.05 && n.x > 0.15 && abs(n.z) < 0.2 ? 0x111111 :                // ventral tie
@@ -73,7 +75,7 @@ const SPECIES: Spec[] = [
   },
   { // 곤줄박이 Sittiparus varius — cream forehead & cheeks, black crown/eye-line and throat,
     // cream nape patch, chestnut nape-collar and underparts, blue-grey back
-    ko: "곤줄박이", en: "Varied Tit", size: 1, plump: 1, headR: 0.21,
+    ko: "곤줄박이", en: "Varied Tit", form: { body: [0.98, 1.02, 1], head: [1.04, 1, 1], headAt: [0, 0] }, size: 1, plump: 1, headR: 0.21,
     paintHead: (n) =>
       n.y < -0.4 && n.x > -0.3 ? 0x141414 :                                  // throat
       n.x < -0.62 && n.y > 0.1 && n.y < 0.6 ? 0xf1e2c0 :                    // nape patch
@@ -85,7 +87,7 @@ const SPECIES: Spec[] = [
     bill: 0x1a1a1a, billR: 0.045, billL: 0.11, legs: 0x5b6470,
   },
   { // 쇠박새 Poecile palustris — glossy black cap, small black bib, off-white cheeks, plain grey-brown
-    ko: "쇠박새", en: "Marsh Tit", size: 1, plump: 1.02, headR: 0.2,
+    ko: "쇠박새", en: "Marsh Tit", form: { body: [0.94, 1, 1], head: [1.02, 1, 1], headAt: [-0.01, 0] }, size: 1, plump: 1.02, headR: 0.2,
     paintHead: (n) =>
       n.y > 0.18 ? 0x0e0e0e :
       n.y < -0.55 && n.x > 0.15 && abs(n.z) < 0.45 ? 0x0e0e0e :
@@ -97,7 +99,7 @@ const SPECIES: Spec[] = [
   },
   { // 되새 Fringilla montifringilla (male, winter) — mottled dark head, orange throat/breast and shoulders,
     // white belly, black mantle with buff fringes, black wings with orange bar, yellow bill, forked tail
-    ko: "되새", en: "Brambling", size: 1, plump: 0.96, headR: 0.2,
+    ko: "되새", en: "Brambling", form: { body: [1.08, 0.95, 0.95], head: [1.08, 0.94, 0.96], headAt: [0.03, -0.01], neck: 0.95 }, size: 1, plump: 0.96, headR: 0.2,
     paintHead: (n) => n.y < -0.3 && n.x > -0.2 ? 0xe0893a : n.y > 0.4 && Math.sin(n.x * 30) > 0.6 ? 0x5a4636 : 0x2a2320,
     paintBody: (n) =>
       n.y > 0.2 ? (Math.sin(n.x * 25) * Math.sin(n.z * 25) > 0.5 ? 0x7a5e44 : 0x2c2420) :
@@ -109,7 +111,7 @@ const SPECIES: Spec[] = [
   },
   { // 진박새 Periparus ater — black head with short crest and bib, white cheeks and nape spot,
     // slate back, buff underparts, two white wingbars
-    ko: "진박새", en: "Coal Tit", size: 1, plump: 1, headR: 0.21,
+    ko: "진박새", en: "Coal Tit", form: { body: [0.9, 1, 1], head: [1.06, 1.02, 1.02], headAt: [-0.02, 0] }, size: 1, plump: 1, headR: 0.21,
     paintHead: (n) =>
       side(n) > 0.5 && n.y > -0.45 && n.y < 0.2 && n.x > -0.5 ? 0xffffff :
       n.x < -0.7 && n.y > -0.1 && n.y < 0.55 && abs(n.z) < 0.4 ? 0xffffff : 0x111111,
@@ -121,7 +123,7 @@ const SPECIES: Spec[] = [
   },
   { // 참새 Passer montanus — chestnut crown, white cheek with black ear spot, small black bib,
     // white collar, streaked brown back, two thin white wingbars, dark conical bill
-    ko: "참새", en: "Eurasian Tree Sparrow", size: 1, plump: 1, headR: 0.21,
+    ko: "참새", en: "Eurasian Tree Sparrow", form: { body: [1.04, 1.02, 1.06], head: [1.06, 1, 1.02], headAt: [0.01, -0.01], neck: 1.05 }, size: 1, plump: 1, headR: 0.21,
     paintHead: (n) =>
       n.y < -0.42 && n.x > 0.05 && abs(n.z) < 0.5 ? 0x141414 :                      // bib
       (n.x + 0.12) ** 2 + (n.y + 0.08) ** 2 < 0.06 && side(n) > 0.6 ? 0x141414 :   // round ear spot
@@ -137,7 +139,7 @@ const SPECIES: Spec[] = [
   },
   { // 밀화부리 Eophona migratoria (male) — glossy black hood on face & crown, huge yellow bill
     // with dark tip, grey-brown body, orange-buff flanks, black wings with white primary patches
-    ko: "밀화부리", en: "Chinese Grosbeak", size: 1, plump: 0.98, headR: 0.22,
+    ko: "밀화부리", en: "Chinese Grosbeak", form: { body: [1.12, 1, 1], head: [1.16, 1.04, 1.06], headAt: [0.05, 0.01], neck: 1.02 }, size: 1, plump: 0.98, headR: 0.22,
     paintHead: (n) => n.x > -0.35 || n.y > 0.55 ? 0x0f0f10 : 0x8e8a86,
     paintBody: (n) =>
       n.y > 0.15 ? 0x8a8580 : n.x > 0.25 ? 0x9e978f : n.y > -0.55 && n.x > -0.25 ? 0xd59a5c : 0xece8e2,
@@ -148,7 +150,7 @@ const SPECIES: Spec[] = [
   },
   { // 노랑배진박새 Periparus venustulus (male) — black head and bib, white cheeks and nape spot,
     // bright yellow underparts, blue-grey back, two white wingbars
-    ko: "노랑배진박새", en: "Yellow-bellied Tit", size: 1, plump: 1, headR: 0.2,
+    ko: "노랑배진박새", en: "Yellow-bellied Tit", form: { body: [0.9, 1, 1], head: [1.06, 1.02, 1.02], headAt: [-0.02, 0] }, size: 1, plump: 1, headR: 0.2,
     paintHead: (n) =>
       side(n) > 0.52 && n.y > -0.42 && n.y < 0.2 && n.x > -0.5 ? 0xffffff :
       n.x < -0.7 && n.y > -0.1 && n.y < 0.55 && abs(n.z) < 0.4 ? 0xffffff : 0x121212,
@@ -160,7 +162,7 @@ const SPECIES: Spec[] = [
   },
   { // 검은머리촉새 Emberiza aureola (male, breeding) — black face, chestnut crown/nape and back,
     // chestnut breast band across bright yellow underparts, bold white shoulder patch
-    ko: "검은머리촉새", en: "Yellow-breasted Bunting", size: 1, plump: 0.95, headR: 0.2,
+    ko: "검은머리촉새", en: "Yellow-breasted Bunting", form: { body: [1.16, 0.92, 0.92], head: [1.08, 0.94, 0.94], headAt: [0.04, 0.0], neck: 0.92 }, size: 1, plump: 0.95, headR: 0.2,
     paintHead: (n) =>
       n.y < -0.45 && n.x > -0.1 ? 0xf2cf2a :                                      // yellow throat
       n.x > 0.2 || (side(n) > 0.5 && n.y < 0.3 && n.x > -0.4) ? 0x111111 :        // black face
@@ -176,7 +178,7 @@ const SPECIES: Spec[] = [
   },
   { // 콩새 Coccothraustes coccothraustes — orange-brown head, grey nape collar, black bib & lores
     // around a massive pale-horn bill, brown back, pinkish-buff belly, white wing panel, short white-tipped tail
-    ko: "콩새", en: "Hawfinch", size: 1, plump: 1.05, headR: 0.23,
+    ko: "콩새", en: "Hawfinch", form: { body: [1.02, 1.06, 1.1], head: [1.18, 1.12, 1.14], headAt: [0.02, -0.02], neck: 1.05 }, size: 1, plump: 1.05, headR: 0.23,
     paintHead: (n) =>
       n.y < -0.35 && n.x > 0.1 && abs(n.z) < 0.4 ? 0x121212 :                     // bib
       n.x > 0.82 && n.y > -0.35 && n.y < 0.1 ? 0x121212 :                          // lores
@@ -258,6 +260,68 @@ function featherBlade(len: number, width: number, thick = 0.012) {
   return geo;
 }
 
+
+// ---------------------------------------------------------------- plumage textures
+/* Each body part gets a painted texture (sampled per texel from the species' paint
+   function over the part's UV layout) overlaid with rows of overlapping feather
+   scallops and fine barb grain. Cached per species, so arrivals cost nothing. */
+const texCache = new Map<string, THREE.CanvasTexture>();
+const PROFILE = (t: number, plump: number) => 0.31 * plump * Math.pow(Math.sin(Math.PI * t), 0.72) * (0.6 + 0.4 * t);
+const fract = (x: number) => x - Math.floor(x);
+function plumageTexture(key: string, W: number, H: number, dirAt: (u: number, v: number, out: THREE.Vector3) => void,
+  fn: (n: THREE.Vector3) => number, featherRows: number, featherCols: number) {
+  const hit = texCache.get(key);
+  if (hit) return hit;
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d")!;
+  const img = ctx.createImageData(W, H);
+  const d = new THREE.Vector3();
+  const c = new THREE.Color();
+  for (let j = 0; j < H; j++) {
+    for (let i = 0; i < W; i++) {
+      const u = (i + 0.5) / W, v = (j + 0.5) / H;
+      // 2×2 supersample for clean pattern edges
+      let r = 0, g = 0, b = 0;
+      for (let k = 0; k < 4; k++) {
+        dirAt(u + ((k & 1) - 0.5) / W * 0.7, v + ((k >> 1) - 0.5) / H * 0.7, d);
+        c.setHex(fn(d)); r += c.r; g += c.g; b += c.b;
+      }
+      // feather scallops: staggered rows, each feather darker at its trailing edge
+      const fr = v * featherRows, row = Math.floor(fr);
+      const fc = u * featherCols + (row % 2) * 0.5;
+      const fu = fract(fc) - 0.5, fv = fract(fr);
+      const edge = fv + fu * fu * 1.6;                                   // curved feather tip
+      const jitterEdge = 0.72 + (hash(Math.floor(fc), row, 3) - 0.5) * 0.18;
+      let k = 1 - 0.055 * Math.max(0, Math.min(1, (edge - jitterEdge) / (1 - jitterEdge)));
+      k += 0.025 * (1 - Math.abs(fu) * 2) * (1 - fv);                    // soft sheen near the rachis
+      k *= 1 + (hash(i * 0.7, j * 0.13, 1) - 0.5) * 0.08;                 // barb grain
+      k *= 1 + (hash(Math.floor(fc), row, 7) - 0.5) * 0.06;              // feather-to-feather variation
+      const o = (j * W + i) * 4;
+      img.data[o] = Math.min(255, (r / 4) * k * 255);
+      img.data[o + 1] = Math.min(255, (g / 4) * k * 255);
+      img.data[o + 2] = Math.min(255, (b / 4) * k * 255);
+      img.data[o + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(canvas);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  texCache.set(key, t);
+  return t;
+}
+/** Direction on a THREE.SphereGeometry for canvas coords (u across, v down). */
+const sphereDir = (u: number, v: number, out: THREE.Vector3) => {
+  const phi = u * Math.PI * 2, th = v * Math.PI;
+  out.set(-Math.cos(phi) * Math.sin(th), Math.cos(th), Math.sin(phi) * Math.sin(th)).normalize();
+};
+/** Direction on the lathe torso (axis turned to +x) for canvas coords. */
+const torsoDir = (plump: number) => (u: number, v: number, out: THREE.Vector3) => {
+  const t = THREE.MathUtils.clamp(1 - v, 0, 1), phi = u * Math.PI * 2, r = PROFILE(t, plump);
+  out.set(-0.44 + t * 0.8, -r * Math.sin(phi) * 1.02, r * Math.cos(phi) * 0.94).normalize();
+};
+
 type Rig = {
   g: THREE.Group; body: THREE.Group; head: THREE.Group; hips: THREE.Group;
   tail: THREE.Group; tailFeathers: THREE.Object3D[];
@@ -290,31 +354,36 @@ function buildBird(sp: Spec): Rig {
   const pts: THREE.Vector2[] = [];
   for (let i = 0; i <= 44; i++) {
     const t = i / 44;
-    const r = 0.31 * sp.plump * Math.pow(Math.sin(Math.PI * t), 0.72) * (0.6 + 0.4 * t);
+    const r = PROFILE(t, sp.plump);
     pts.push(new THREE.Vector2(Math.max(r, 0.001), -0.44 + t * 0.8));
   }
   const torsoGeo = new THREE.LatheGeometry(pts, 64);
   torsoGeo.rotateZ(-Math.PI / 2);
   torsoGeo.scale(1, 1.02, 0.94);
   torsoGeo.computeVertexNormals();
-  const torso = new THREE.Mesh(paint(torsoGeo, (n) => foldedWing(sp, n) ?? sp.paintBody(n)), featherMat);
+  const F = { body: [1, 1, 1], head: [1, 1, 1], headAt: [0, 0], neck: 1, ...sp.form } as Required<NonNullable<Spec["form"]>>;
+  const skin = (map: THREE.Texture) => M(new THREE.MeshStandardMaterial({ map, roughness: 0.93 }));
+  const torso = new THREE.Mesh(torsoGeo, skin(plumageTexture(sp.en + ":torso", 512, 256, torsoDir(sp.plump), (n) => foldedWing(sp, n) ?? sp.paintBody(n), 15, 34)));
   torso.position.y = 0.46;
+  torso.scale.set(F.body[0], F.body[1], F.body[2]);
   body.add(torso);
 
   // neck: bridges head and breast so they read as one bird
-  const neckGeo = new THREE.SphereGeometry(0.17, 28, 20);
+  const neckGeo = new THREE.SphereGeometry(0.17 * F.neck, 40, 28);
   neckGeo.scale(1.05, 1, 0.95);
-  const neck = new THREE.Mesh(paint(neckGeo, (n) => (n.y < -0.1 || n.x > 0.4 ? sp.paintBody(new THREE.Vector3(0.6, n.y - 0.2, n.z).normalize()) : sp.paintHead(new THREE.Vector3(-0.5, n.y, n.z).normalize()))), featherMat);
-  neck.position.set(0.24, 0.62, 0);
+  const neck = new THREE.Mesh(neckGeo, skin(plumageTexture(sp.en + ":neck", 256, 128, sphereDir, (n) => (n.y < -0.1 || n.x > 0.4 ? sp.paintBody(new THREE.Vector3(0.6, n.y - 0.2, n.z).normalize()) : sp.paintHead(new THREE.Vector3(-0.5, n.y, n.z).normalize())), 10, 26)));
+  neck.position.set(0.24 * F.body[0] + F.headAt[0] * 0.5, 0.6 + 0.02 * F.body[1] + F.headAt[1] * 0.5, 0);
   body.add(neck);
 
   // head
   const head = new THREE.Group();
-  head.position.set(0.33, 0.72, 0);
+  head.scale.set(F.head[0], F.head[1], F.head[2]);
+  head.position.set(0.33 * F.body[0] + F.headAt[0], 0.72 * (0.5 + 0.5 * F.body[1]) + F.headAt[1], 0);
   body.add(head);
-  const headGeo = new THREE.SphereGeometry(sp.headR, 56, 42);
+  const headGeo = new THREE.SphereGeometry(sp.headR, 64, 48);
   headGeo.scale(1.06, 0.97, 0.97);
-  head.add(new THREE.Mesh(paint(headGeo, (n) => sp.paintHead(n), 0.05), featherMat));
+  const headMesh = new THREE.Mesh(headGeo, skin(plumageTexture(sp.en + ":head", 512, 256, sphereDir, (n) => sp.paintHead(n), 22, 56)));
+  head.add(headMesh);
   if (sp.en === "Coal Tit") {
     const cg = new THREE.ConeGeometry(0.065, 0.15, 10); cg.translate(0, 0.075, 0);
     const c = new THREE.Mesh(cg, S(0x111111, 0.8)); c.position.set(-0.06, 0.15, 0); c.rotation.z = 0.95; head.add(c);
@@ -338,7 +407,7 @@ function buildBird(sp: Spec): Rig {
 
   // tail: six rectrices on a fan; pale outer edges where the species has them
   const tail = new THREE.Group();
-  tail.position.set(-0.36, 0.5, 0); tail.rotation.z = 0.2;
+  tail.position.set(-0.36 * F.body[0], 0.5, 0); tail.rotation.z = 0.2;
   body.add(tail);
   const tailFeathers: THREE.Object3D[] = [];
   const nT = 6;
@@ -395,7 +464,7 @@ function buildBird(sp: Spec): Rig {
     if (sd === -1) geo.scale(1, 1, -1);
     paint(geo, (_n, p) => (Math.sin(p.z * 160) > 0.7 || p.x < -0.27 ? shade(sp.primaries, 1.6) : sp.primaries), 0.03, undefined, false);
     const t = new THREE.Mesh(geo, featherMat2);
-    t.position.set(-0.2, 0.55, 0.165 * sd);
+    t.position.set(-0.2 * F.body[0], 0.55, 0.165 * sd * F.body[2]);
     t.rotation.set(0, -0.14 * sd, 0.22);
     body.add(t); tips.push(t);
   }
