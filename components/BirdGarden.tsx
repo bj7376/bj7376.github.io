@@ -124,7 +124,7 @@ const SPECIES: Spec[] = [
     ko: "참새", en: "Eurasian Tree Sparrow", size: 1, plump: 1, headR: 0.21,
     paintHead: (n) =>
       n.y < -0.42 && n.x > 0.05 && abs(n.z) < 0.5 ? 0x141414 :                      // bib
-      side(n) > 0.62 && n.y > -0.25 && n.y < 0.12 && n.x > -0.45 && n.x < 0.15 ? 0x141414 : // ear spot
+      (n.x + 0.12) ** 2 + (n.y + 0.08) ** 2 < 0.06 && side(n) > 0.6 ? 0x141414 :   // round ear spot
       n.y > 0.25 ? 0x8a4a2a :                                                       // chestnut crown
       n.x < -0.55 ? 0xf2efe8 : 0xf6f3ee,                                            // collar / cheek
     paintBody: (n) =>
@@ -198,19 +198,48 @@ const hash = (x: number, y: number, z: number) => {
   return s - Math.floor(s);
 };
 /** Per-vertex colour from a paint function, with fine feather grain and a soft underside shade. */
-function paint(geo: THREE.BufferGeometry, fn: (n: THREE.Vector3, p: THREE.Vector3) => number, grain = 0.07, center = new THREE.Vector3()) {
+const shade = (hex: number, k: number) => new THREE.Color(hex).multiplyScalar(k).getHex();
+const JIT: [number, number, number][] = [[0, 0, 0], [0.08, 0, 0], [-0.08, 0, 0], [0, 0.08, 0], [0, -0.08, 0], [0, 0, 0.08], [0, 0, -0.08], [0.05, 0.05, 0.05], [-0.05, -0.05, -0.05], [0.05, -0.05, 0.05], [-0.05, 0.05, -0.05]];
+const _a = new THREE.Color();
+const _m = new THREE.Vector3();
+/** Per-vertex colour from a paint function. Samples are averaged around each vertex
+    so pattern edges blend softly like feather tracts, plus fine grain and underside shade. */
+function paint(geo: THREE.BufferGeometry, fn: (n: THREE.Vector3, p: THREE.Vector3) => number, grain = 0.06, center = new THREE.Vector3(), soft = true) {
   const pos = geo.attributes.position;
   const col = new Float32Array(pos.count * 3);
   const p = new THREE.Vector3();
+  const jit = soft ? JIT : JIT.slice(0, 1);
   for (let i = 0; i < pos.count; i++) {
     p.fromBufferAttribute(pos, i);
     _n.copy(p).sub(center).normalize();
-    _c.setHex(fn(_n, p)).convertSRGBToLinear();
-    const k = 1 + (hash(p.x * 9, p.y * 9, p.z * 9) - 0.5) * 2 * grain - Math.max(0, -_n.y - 0.6) * 0.18;
-    col.set([_c.r * k, _c.g * k, _c.b * k], i * 3);
+    _a.setRGB(0, 0, 0);
+    for (const [jx, jy, jz] of jit) {
+      _m.set(_n.x + jx, _n.y + jy, _n.z + jz).normalize();
+      _c.setHex(fn(_m, p)).convertSRGBToLinear();
+      _a.r += _c.r; _a.g += _c.g; _a.b += _c.b;
+    }
+    const k = (1 + (hash(p.x * 9, p.y * 9, p.z * 9) - 0.5) * 2 * grain - Math.max(0, -_n.y - 0.6) * 0.18) / jit.length;
+    col.set([_a.r * k, _a.g * k, _a.b * k], i * 3);
   }
   geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
   return geo;
+}
+/** The folded wing as it lies on the flank: coverts with wingbars, then flight feathers
+    with pale fringes running back to the rump. Returns null outside the wing. */
+function foldedWing(sp: Spec, n: THREE.Vector3): number | null {
+  const az = Math.abs(n.z);
+  if (az < 0.42 || n.x > 0.3 || n.y > 0.6) return null;
+  const lower = -0.12 + Math.max(0, n.x + 0.2) * 0.7 + Math.max(0, -n.x - 0.5) * 0.5;           // lower edge rises toward the shoulder
+  if (n.y < lower) return null;
+  if (n.y < lower) return null;
+  const span = (0.6 - n.y) / (0.6 - lower);                     // 0 = top of wing … 1 = lower edge
+  if (n.x < -0.58) {                                              // primaries / tertials
+    const fringe = Math.sin((n.y + n.x * 0.6) * 38) > 0.82;
+    return fringe ? shade(sp.primaries, 1.9) : sp.primaries;
+  }
+  for (const b of sp.wingBands ?? []) if (span >= b.from && span <= b.to) return b.color;
+  const fringe = n.x < -0.05 && Math.sin((n.y + n.x * 0.4) * 34) > 0.88;   // greater-covert/tertial edges
+  return fringe ? shade(sp.wing, 1.35) : sp.wing;
 }
 const shape = (outline: [number, number][]) => {
   const s = new THREE.Shape();
@@ -228,12 +257,11 @@ function featherBlade(len: number, width: number, thick = 0.012) {
   geo.rotateX(Math.PI / 2);
   return geo;
 }
-const shade = (hex: number, k: number) => new THREE.Color(hex).multiplyScalar(k).getHex();
 
 type Rig = {
   g: THREE.Group; body: THREE.Group; head: THREE.Group; hips: THREE.Group;
   tail: THREE.Group; tailFeathers: THREE.Object3D[];
-  wingL: THREE.Group; wingR: THREE.Group; flightL: THREE.Object3D[]; flightR: THREE.Object3D[];
+  wingL: THREE.Group; wingR: THREE.Group; tips: THREE.Object3D[]; flightL: THREE.Object3D[]; flightR: THREE.Object3D[];
   legs: { hip: THREE.Group; ankle: THREE.Group; foot: THREE.Group }[];
   mats: THREE.Material[];
 };
@@ -260,16 +288,16 @@ function buildBird(sp: Spec): Rig {
 
   // torso: lathe teardrop, high resolution
   const pts: THREE.Vector2[] = [];
-  for (let i = 0; i <= 30; i++) {
-    const t = i / 30;
+  for (let i = 0; i <= 44; i++) {
+    const t = i / 44;
     const r = 0.31 * sp.plump * Math.pow(Math.sin(Math.PI * t), 0.72) * (0.6 + 0.4 * t);
     pts.push(new THREE.Vector2(Math.max(r, 0.001), -0.44 + t * 0.8));
   }
-  const torsoGeo = new THREE.LatheGeometry(pts, 40);
+  const torsoGeo = new THREE.LatheGeometry(pts, 64);
   torsoGeo.rotateZ(-Math.PI / 2);
   torsoGeo.scale(1, 1.02, 0.94);
   torsoGeo.computeVertexNormals();
-  const torso = new THREE.Mesh(paint(torsoGeo, (n) => sp.paintBody(n)), featherMat);
+  const torso = new THREE.Mesh(paint(torsoGeo, (n) => foldedWing(sp, n) ?? sp.paintBody(n)), featherMat);
   torso.position.y = 0.46;
   body.add(torso);
 
@@ -284,7 +312,7 @@ function buildBird(sp: Spec): Rig {
   const head = new THREE.Group();
   head.position.set(0.33, 0.72, 0);
   body.add(head);
-  const headGeo = new THREE.SphereGeometry(sp.headR, 40, 30);
+  const headGeo = new THREE.SphereGeometry(sp.headR, 56, 42);
   headGeo.scale(1.06, 0.97, 0.97);
   head.add(new THREE.Mesh(paint(headGeo, (n) => sp.paintHead(n), 0.05), featherMat));
   if (sp.en === "Coal Tit") {
@@ -359,6 +387,18 @@ function buildBird(sp: Spec): Rig {
     return { pivot, flight };
   };
   const wl = makeWing(1), wr = makeWing(-1);
+  wl.pivot.visible = wr.pivot.visible = false;   // open-wing meshes only show in flight
+  // folded primary tips crossing over the rump (the painted flank wing ends at the body outline)
+  const tips: THREE.Object3D[] = [];
+  for (const sd of [1, -1]) {
+    const geo = featherBlade(0.3, 0.12, 0.014);
+    if (sd === -1) geo.scale(1, 1, -1);
+    paint(geo, (_n, p) => (Math.sin(p.z * 160) > 0.7 || p.x < -0.27 ? shade(sp.primaries, 1.6) : sp.primaries), 0.03, undefined, false);
+    const t = new THREE.Mesh(geo, featherMat2);
+    t.position.set(-0.2, 0.55, 0.165 * sd);
+    t.rotation.set(0, -0.14 * sd, 0.22);
+    body.add(t); tips.push(t);
+  }
 
   // legs: hip → tibia (feathered) → ankle → tarsus → foot with 3 front toes, hallux and claws
   const hips = new THREE.Group();
@@ -385,7 +425,7 @@ function buildBird(sp: Spec): Rig {
   });
 
   g.traverse((o) => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = true; });
-  return { g, body, head, hips, tail, tailFeathers, wingL: wl.pivot, wingR: wr.pivot, flightL: wl.flight, flightR: wr.flight, legs, mats };
+  return { g, body, head, hips, tail, tailFeathers, wingL: wl.pivot, wingR: wr.pivot, tips, flightL: wl.flight, flightR: wr.flight, legs, mats };
 }
 
 // ---------------------------------------------------------------- pose helpers
@@ -410,6 +450,9 @@ function stance(r: Rig, a: number, b: number, grounded = true) {
 }
 const FOLD = 1.4;
 function wings(r: Rig, angle: number, spread: number) {
+  const open = angle < FOLD - 0.3;
+  r.wingL.visible = r.wingR.visible = open;
+  for (const t of r.tips) t.visible = !open;
   r.wingL.rotation.x = angle; r.wingR.rotation.x = -angle;
   for (const f of r.flightL) f.rotation.y = spread * (0.15 + f.userData.u * 0.55);
   for (const f of r.flightR) f.rotation.y = -spread * (0.15 + f.userData.u * 0.55);
@@ -445,6 +488,8 @@ export function BirdGarden() {
   useEffect(() => {
     const host = hostRef.current;
     if (!host || hidden) return;
+    const gallery = new URLSearchParams(window.location.search).has("birds");   // ?birds → static species gallery
+    if (gallery) { host.style.height = "100vh"; host.style.background = "#fff"; }
     const calm = false; // birds always animate (reduced-motion previously blocked flight and clicks)
 
     let renderer: THREE.WebGLRenderer;
@@ -496,7 +541,7 @@ export function BirdGarden() {
 
     // ---------- layout
     const layout = () => {
-      const w = window.innerWidth, h = STRIP_H;
+      const w = window.innerWidth, h = host.clientHeight || STRIP_H;
       renderer.setSize(w, h, false);
       const hw = w / PX / 2;
       camera.left = -hw; camera.right = hw;
@@ -520,8 +565,8 @@ export function BirdGarden() {
     // ---------- birds
     const birds: Bird[] = [];
     const population = Math.round(THREE.MathUtils.clamp((B.hi - B.lo) * PX / 150, 4, 6));
-    const spawn = (arriving: boolean) => {
-      const sp = SPECIES[(Math.random() * SPECIES.length) | 0];
+    const spawn = (arriving: boolean, forced?: Spec) => {
+      const sp = forced ?? SPECIES[(Math.random() * SPECIES.length) | 0];
       const rig = buildBird(sp);
       const scale = 0.92;
       rig.g.scale.setScalar(scale);
@@ -590,6 +635,7 @@ export function BirdGarden() {
     };
 
     const update = (b: Bird, dt: number) => {
+      if ((b.mode as string) === "gallery") return;
       b.t += dt;
       const p = b.g.position;
       b.phase += dt;
@@ -803,7 +849,19 @@ export function BirdGarden() {
       }
     };
 
-    for (let i = 0; i < population; i++) spawn(false);
+    if (gallery) {
+      const hh = host.clientHeight / PX / 2;
+      camera.top = hh; camera.bottom = -hh;
+      camera.zoom = 3.2; camera.position.set(0, 6, 20); camera.lookAt(0, 1.0, 0); camera.updateProjectionMatrix();
+      const perRow = 4, gapX = 1.6, gapY = 1.5;
+      SPECIES.forEach((sp, i) => {
+        const b = spawn(false, sp);
+        const row = Math.floor(i / perRow), col = i % perRow;
+        b.g.position.set((col - (perRow - 1) / 2) * gapX, 2.4 - row * gapY, 0);
+        b.g.rotation.y = 0;
+        b.mode = "gallery" as Mode;
+      });
+    } else for (let i = 0; i < population; i++) spawn(false);
     for (let i = 0; i < 3; i++) scatter(rand(B.lo, B.hi), 5, 0.6);
 
     // ---------- interaction (window-level; the canvas ignores the pointer)
